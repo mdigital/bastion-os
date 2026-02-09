@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Haas Grot Display';
+  src: local('Haas Grot Display');
+  font-weight: 100 900;
+}
+
+@font-face {
+  font-family: 'Haas Grot Text';
+  src: local('Haas Grot Text');
+  font-weight: 100 900;
+}
+
+:root {
+  --bone: #FEFBE7;
+  --yellow: #FFCA05;
+  --black: #000000;
+  --white: #ffffff;
+}
+
+body {
+  font-family: 'Haas Grot Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--bone);
+  color: var(--black);
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Haas Grot Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+h1 {
+  font-size: 2.5rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 2rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 1.5rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+h4 {
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+p {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+button {
+  font-family: 'Haas Grot Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}

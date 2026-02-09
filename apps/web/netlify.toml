@@ -1,0 +1,15 @@
+[build]
+  command = "pnpm build"
+  publish = "apps/web/dist"
+  base = "."
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://bastion-os-api.fly.dev/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
