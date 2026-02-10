@@ -14,6 +14,8 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [newName, setNewName] = useState('')
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     apiFetch<Client[]>('/api/admin/clients')
@@ -21,6 +23,25 @@ export default function ClientsPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
+
+  function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    setAdding(true)
+    setError(null)
+    apiFetch<Client>('/api/admin/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    })
+      .then((created) => {
+        setClients((prev) => [...prev, created])
+        setNewName('')
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setAdding(false))
+  }
 
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', padding: '0 16px' }}>
@@ -30,6 +51,20 @@ export default function ClientsPage() {
           Sign out
         </button>
       </div>
+
+      <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, margin: '16px 0' }}>
+        <input
+          type="text"
+          placeholder="Client name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          disabled={adding}
+          style={{ flex: 1, padding: '6px 8px' }}
+        />
+        <button type="submit" disabled={adding || !newName.trim()}>
+          {adding ? 'Adding...' : 'Add client'}
+        </button>
+      </form>
 
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
