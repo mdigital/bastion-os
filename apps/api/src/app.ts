@@ -5,7 +5,16 @@ import sensible from '@fastify/sensible'
 import rateLimit from '@fastify/rate-limit'
 import multipart from '@fastify/multipart'
 import auth from './plugins/auth.js'
+import requireRole from './plugins/require-role.js'
 import healthRoutes from './routes/health.js'
+import organisationRoutes from './routes/admin/organisations.js'
+import userRoutes from './routes/admin/users.js'
+import practiceRoutes from './routes/admin/practices.js'
+import sectionTemplateRoutes from './routes/admin/section-templates.js'
+import practiceTemplateRoutes from './routes/admin/practice-templates.js'
+import clientRoutes from './routes/admin/clients.js'
+import kbSourceRoutes from './routes/kb/sources.js'
+import kbChatRoutes from './routes/kb/chat.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -31,9 +40,18 @@ export async function buildApp() {
 
   // Auth
   await app.register(auth)
+  await app.register(requireRole)
 
   // Routes
   await app.register(healthRoutes)
+  await app.register(organisationRoutes)
+  await app.register(userRoutes)
+  await app.register(practiceRoutes)
+  await app.register(sectionTemplateRoutes)
+  await app.register(practiceTemplateRoutes)
+  await app.register(clientRoutes)
+  await app.register(kbSourceRoutes)
+  await app.register(kbChatRoutes)
 
   return app
 }

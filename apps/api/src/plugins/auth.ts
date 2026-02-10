@@ -1,15 +1,20 @@
 import type { FastifyPluginAsync } from 'fastify'
+import type { UserRole } from '@bastion-os/shared'
 import fp from 'fastify-plugin'
 import { supabaseAdmin } from '../lib/supabase.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
     userId: string
+    organisationId: string | null
+    userRole: UserRole
   }
 }
 
 const authPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorateRequest('userId', '')
+  fastify.decorateRequest('organisationId', null)
+  fastify.decorateRequest('userRole', 'user')
 
   fastify.addHook('onRequest', async (request, reply) => {
     // Skip auth for health check
@@ -31,6 +36,18 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
     }
 
     request.userId = user.id
+
+    // Fetch profile for org and role
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('organisation_id, role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile) {
+      request.organisationId = profile.organisation_id
+      request.userRole = profile.role as UserRole
+    }
   })
 }
 
