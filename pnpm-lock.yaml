@@ -78,6 +78,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@bastion-os/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@supabase/supabase-js':
         specifier: ^2.49.4
         version: 2.95.3

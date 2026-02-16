@@ -13,8 +13,10 @@ import practiceRoutes from './routes/admin/practices.js'
 import sectionTemplateRoutes from './routes/admin/section-templates.js'
 import practiceTemplateRoutes from './routes/admin/practice-templates.js'
 import clientRoutes from './routes/admin/clients.js'
+import meRoutes from './routes/me.js'
 import kbSourceRoutes from './routes/kb/sources.js'
 import kbChatRoutes from './routes/kb/chat.js'
+import promptRoutes from './routes/admin/prompts.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -26,7 +28,9 @@ export async function buildApp() {
     origin: process.env['CORS_ORIGIN'] || 'http://localhost:5173',
     credentials: true,
   })
-  await app.register(helmet)
+  await app.register(helmet, {
+    contentSecurityPolicy: false,
+  })
   await app.register(sensible)
   await app.register(rateLimit, {
     max: 100,
@@ -44,6 +48,7 @@ export async function buildApp() {
 
   // Routes
   await app.register(healthRoutes)
+  await app.register(meRoutes)
   await app.register(organisationRoutes)
   await app.register(userRoutes)
   await app.register(practiceRoutes)
@@ -52,6 +57,7 @@ export async function buildApp() {
   await app.register(clientRoutes)
   await app.register(kbSourceRoutes)
   await app.register(kbChatRoutes)
+  await app.register(promptRoutes)
 
   return app
 }

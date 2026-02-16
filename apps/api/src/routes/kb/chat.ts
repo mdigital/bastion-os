@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../../lib/supabase.js'
 import { gemini } from '../../lib/gemini.js'
+import { getPrompt } from '../../lib/prompts.js'
 
 const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/kb/clients/:clientId/conversations
@@ -228,10 +229,14 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
       }))
 
       // Call Gemini
+      const systemInstruction = await getPrompt(
+        'kb-chat-system',
+        'You are a knowledge base assistant. Answer questions based on the provided documents. If you cannot find the answer in the documents, say so clearly.',
+      )
       const response = await gemini.models.generateContent({
         model: 'gemini-2.0-flash',
         config: {
-          systemInstruction: 'You are a knowledge base assistant. Answer questions based on the provided documents. If you cannot find the answer in the documents, say so clearly.',
+          systemInstruction,
         },
         contents: [
           ...historyMessages,
