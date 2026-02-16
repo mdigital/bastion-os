@@ -196,6 +196,18 @@ export interface Signal {
   updated_at: string
 }
 
+// ─── Prompts ───────────────────────────────────────────────────────────────
+
+export interface Prompt {
+  id: string
+  key: string
+  display_name: string
+  category: string
+  content: string
+  created_at: string
+  updated_at: string
+}
+
 // ─── API ────────────────────────────────────────────────────────────────────
 
 export interface ApiError {

@@ -42,6 +42,13 @@ bastion-os is an AI-powered brief expansion tool. Users upload creative briefs (
 - Auth plugin at `apps/api/src/plugins/auth.ts` — skips `/api/health`
 - All API routes prefixed with `/api/`
 
+## LLM Prompt Management
+
+All LLM system prompts must be stored in the `prompts` database table and managed through the admin Prompts page (`/prompts`). Do NOT hardcode prompt strings in route handlers. Instead:
+1. Add new prompts via a database migration (insert into `public.prompts`)
+2. Read prompts at runtime using `getPrompt(key, fallback)` from `apps/api/src/lib/prompts.ts`
+3. Prompt keys use lowercase slugs, e.g. `kb-chat-system`
+
 ## Development
 
 ```bash

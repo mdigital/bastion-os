@@ -4,6 +4,7 @@ import Login from './components/Login.tsx'
 import ProtectedRoute from './components/ProtectedRoute.tsx'
 import ClientsPage from './pages/ClientsPage.tsx'
 import ClientKBPage from './pages/ClientKBPage.tsx'
+import PromptsPage from './pages/PromptsPage.tsx'
 
 function App() {
   return (
@@ -24,6 +25,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ClientKBPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/prompts"
+            element={
+              <ProtectedRoute>
+                <PromptsPage />
               </ProtectedRoute>
             }
           />

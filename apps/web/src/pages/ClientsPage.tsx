@@ -10,7 +10,7 @@ interface Client {
 }
 
 export default function ClientsPage() {
-  const { signOut } = useAuth()
+  const { signOut, userRole } = useAuth()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,9 +47,12 @@ export default function ClientsPage() {
     <div style={{ maxWidth: 600, margin: '40px auto', padding: '0 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Clients</h1>
-        <button type="button" onClick={signOut}>
-          Sign out
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {userRole === 'admin' && <Link to="/prompts">Prompts</Link>}
+          <button type="button" onClick={signOut}>
+            Sign out
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, margin: '16px 0' }}>

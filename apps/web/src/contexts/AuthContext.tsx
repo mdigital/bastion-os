@@ -1,11 +1,14 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import type { UserRole } from '@bastion-os/shared'
 import { supabase } from '../lib/supabase.ts'
+import { apiFetch } from '../lib/api.ts'
 
 interface AuthState {
   user: User | null
   session: Session | null
+  userRole: UserRole | null
   loading: boolean
   signIn: (email: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
@@ -16,14 +19,28 @@ const AuthContext = createContext<AuthState | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
+  const [userRole, setUserRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
+
+  async function fetchRole() {
+    try {
+      const profile = await apiFetch<{ role: UserRole }>('/api/me')
+      setUserRole(profile.role)
+    } catch {
+      setUserRole(null)
+    }
+  }
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s)
       setUser(s?.user ?? null)
-      setLoading(false)
+      if (s) {
+        fetchRole().finally(() => setLoading(false))
+      } else {
+        setLoading(false)
+      }
     })
 
     // Listen for auth changes
@@ -32,6 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s)
       setUser(s?.user ?? null)
+      if (s) {
+        fetchRole()
+      } else {
+        setUserRole(null)
+      }
       setLoading(false)
     })
 
@@ -45,10 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut()
+    setUserRole(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, userRole, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )
