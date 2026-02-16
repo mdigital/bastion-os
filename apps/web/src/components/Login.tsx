@@ -1,69 +1,208 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { useAuth } from '../contexts/AuthContext.tsx'
+import { Mail, ArrowRight, Check, Loader } from 'lucide-react'
 
-export default function Login() {
-  const { signIn } = useAuth()
+interface LoginProps {
+  onLogin: () => void
+}
+
+type LoginStep = 'email' | 'sent' | 'verifying'
+
+export default function Login({ onLogin }: LoginProps) {
   const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [step, setStep] = useState<LoginStep>('email')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  async function handleSubmit(e: FormEvent) {
+  // Mock registered users - in production this would check against a database
+  const registeredUsers = [
+    'sarah.chen@strength.agency',
+    'john.smith@strength.agency',
+    'emma.wilson@strength.agency',
+    'michael.brown@strength.agency',
+    'demo@bastion.app',
+  ]
+
+  const handleSendMagicLink = async (e: React.SyntheticEvent) => {
     e.preventDefault()
-    setError(null)
-    setSubmitting(true)
+    setError('')
 
-    const { error: err } = await signIn(email)
-
-    setSubmitting(false)
-    if (err) {
-      setError(err.message)
-    } else {
-      setSent(true)
+    if (!email.trim()) {
+      setError('Please enter your email address')
+      return
     }
+
+    if (!email.includes('@')) {
+      setError('Please enter a valid email address')
+      return
+    }
+
+    setIsLoading(true)
+
+    // Simulate API call to check if user is registered
+    setTimeout(() => {
+      const isRegistered = registeredUsers.includes(email.toLowerCase())
+
+      if (!isRegistered) {
+        setError('This email is not registered in the system. Please contact your administrator.')
+        setIsLoading(false)
+        return
+      }
+
+      // Simulate sending magic link
+      setIsLoading(false)
+      setStep('sent')
+    }, 1500)
   }
 
-  if (sent) {
-    return (
-      <div style={{ maxWidth: 400, margin: '80px auto', textAlign: 'center' }}>
-        <h2>Check your email</h2>
-        <p>
-          We sent a magic link to <strong>{email}</strong>. Click the link in
-          the email to sign in.
-        </p>
-        <button type="button" onClick={() => setSent(false)}>
-          Try a different email
-        </button>
-      </div>
-    )
+  const handleResendLink = () => {
+    setIsLoading(true)
+    setTimeout(() => {
+      setIsLoading(false)
+      // Show success message
+      alert('Magic link resent! Check your inbox.')
+    }, 1000)
+  }
+
+  const simulateLogin = () => {
+    setStep('verifying')
+    setTimeout(() => {
+      onLogin()
+    }, 1500)
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: '80px auto' }}>
-      <h1>Sign in to Bastion</h1>
-      <form onSubmit={handleSubmit}>
-        <label htmlFor="email" style={{ display: 'block', marginBottom: 4 }}>
-          Email address
-        </label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@company.com"
-          required
-          style={{ width: '100%', padding: 8, marginBottom: 12 }}
-        />
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{ width: '100%', padding: 10 }}
-        >
-          {submitting ? 'Sending...' : 'Send magic link'}
-        </button>
-      </form>
+    <div className="min-h-screen bg-linear-to-br from-yellow-50 via-white to-gray-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo/Header */}
+        <div className="text-center mb-8">
+          <div className="inline-block mb-4">
+            <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center">
+              <span className="text-2xl font-bold">B</span>
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold mb-2">Bastion OS</h1>
+          <p className="text-gray-600">AI-powered operating system for business managers</p>
+        </div>
+
+        {/* Login Card */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
+          {step === 'email' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Welcome back</h2>
+              <p className="text-gray-600 mb-6">Enter your email to receive a magic link</p>
+
+              <form onSubmit={handleSendMagicLink} className="space-y-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium mb-2">
+                    Email address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value)
+                        setError('')
+                      }}
+                      placeholder="you@example.com"
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full px-6 py-3 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Sending magic link...
+                    </>
+                  ) : (
+                    <>
+                      Send magic link
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-600 mb-2 font-medium">Demo accounts:</p>
+                <p className="text-xs text-gray-500">• sarah.chen@strength.agency</p>
+                <p className="text-xs text-gray-500">• demo@bastion.app</p>
+              </div>
+            </div>
+          )}
+
+          {step === 'sent' && (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check className="w-8 h-8 text-green-600" />
+              </div>
+
+              <h2 className="text-2xl font-bold mb-2">Check your inbox</h2>
+              <p className="text-gray-600 mb-6">
+                We've sent a magic link to <strong>{email}</strong>
+              </p>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-gray-700 mb-3">
+                  Click the link in your email to sign in. The link will expire in 15 minutes.
+                </p>
+                <button
+                  onClick={simulateLogin}
+                  className="text-sm text-yellow-700 hover:text-yellow-800 font-medium underline"
+                >
+                  Simulate login (for demo purposes)
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleResendLink}
+                  disabled={isLoading}
+                  className="text-sm text-gray-600 hover:text-black transition-colors disabled:opacity-50"
+                >
+                  Didn't receive the email? Resend link
+                </button>
+
+                <div>
+                  <button
+                    onClick={() => {
+                      setStep('email')
+                      setEmail('')
+                      setError('')
+                    }}
+                    className="text-sm text-gray-600 hover:text-black transition-colors"
+                  >
+                    Use a different email
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 'verifying' && (
+            <div className="text-center py-8">
+              <Loader className="w-12 h-12 text-yellow-600 animate-spin mx-auto mb-4" />
+              <h2 className="text-xl font-bold mb-2">Verifying...</h2>
+              <p className="text-gray-600">Logging you in to Bastion OS</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-500">Need access? Contact your system administrator</p>
+        </div>
+      </div>
     </div>
   )
 }
