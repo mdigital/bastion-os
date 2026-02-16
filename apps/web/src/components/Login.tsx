@@ -132,12 +132,6 @@ export default function Login({ onLogin }: LoginProps) {
                   )}
                 </button>
               </form>
-
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-600 mb-2 font-medium">Demo accounts:</p>
-                <p className="text-xs text-gray-500">• sarah.chen@strength.agency</p>
-                <p className="text-xs text-gray-500">• demo@bastion.app</p>
-              </div>
             </div>
           )}
 
