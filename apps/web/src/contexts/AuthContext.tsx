@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import type { UserRole } from '@bastion-os/shared'
 import { supabase } from '../lib/supabase.ts'
-import { apiFetch } from '../lib/api.ts'
 
 interface AuthState {
   user: User | null
@@ -16,29 +15,44 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
 
+async function fetchRole(accessToken: string): Promise<UserRole | null> {
+  try {
+    const res = await fetch('/api/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (!res.ok) return null
+    const profile = (await res.json()) as { role: UserRole }
+    return profile.role
+  } catch {
+    return null
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [userRole, setUserRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
 
-  async function fetchRole() {
-    try {
-      const profile = await apiFetch<{ role: UserRole }>('/api/me')
-      setUserRole(profile.role)
-    } catch {
-      setUserRole(null)
-    }
-  }
-
   useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      setSession(s)
+      setUser(s?.user ?? null)
+      if (s) {
+        setUserRole(await fetchRole(s.access_token))
+      }
+      setLoading(false)
+    })
+
+    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, s) => {
       setSession(s)
       setUser(s?.user ?? null)
       if (s) {
-        await fetchRole()
+        setUserRole(await fetchRole(s.access_token))
       } else {
         setUserRole(null)
       }
