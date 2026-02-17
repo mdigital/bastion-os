@@ -1,26 +1,14 @@
 import { useState } from 'react'
+import { supabase } from '../lib/supabase'
 import { Mail, ArrowRight, Check, Loader } from 'lucide-react'
-
-interface LoginProps {
-  onLogin: () => void
-}
 
 type LoginStep = 'email' | 'sent' | 'verifying'
 
-export default function Login({ onLogin }: LoginProps) {
+export default function Login() {
   const [email, setEmail] = useState('')
   const [step, setStep] = useState<LoginStep>('email')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-
-  // Mock registered users - in production this would check against a database
-  const registeredUsers = [
-    'sarah.chen@strength.agency',
-    'john.smith@strength.agency',
-    'emma.wilson@strength.agency',
-    'michael.brown@strength.agency',
-    'demo@bastion.app',
-  ]
 
   const handleSendMagicLink = async (e: React.SyntheticEvent) => {
     e.preventDefault()
@@ -38,20 +26,37 @@ export default function Login({ onLogin }: LoginProps) {
 
     setIsLoading(true)
 
-    // Simulate API call to check if user is registered
-    setTimeout(() => {
-      const isRegistered = registeredUsers.includes(email.toLowerCase())
-
-      if (!isRegistered) {
+    try {
+      const res = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.message || 'Error checking email')
+        setIsLoading(false)
+        return
+      }
+      const data = await res.json()
+      if (!data.found) {
         setError('This email is not registered in the system. Please contact your administrator.')
         setIsLoading(false)
         return
       }
-
-      // Simulate sending magic link
+      // Send Supabase magic link
+      const { error: magicLinkError } = await supabase.auth.signInWithOtp({ email: email.trim() })
+      if (magicLinkError) {
+        setError('Failed to send magic link. Please try again later.')
+        setIsLoading(false)
+        return
+      }
       setIsLoading(false)
       setStep('sent')
-    }, 1500)
+    } catch {
+      setError('Network error. Please try again.')
+      setIsLoading(false)
+    }
   }
 
   const handleResendLink = () => {
@@ -61,13 +66,6 @@ export default function Login({ onLogin }: LoginProps) {
       // Show success message
       alert('Magic link resent! Check your inbox.')
     }, 1000)
-  }
-
-  const simulateLogin = () => {
-    setStep('verifying')
-    setTimeout(() => {
-      onLogin()
-    }, 1500)
   }
 
   return (
@@ -150,12 +148,6 @@ export default function Login({ onLogin }: LoginProps) {
                 <p className="text-sm text-gray-700 mb-3">
                   Click the link in your email to sign in. The link will expire in 15 minutes.
                 </p>
-                <button
-                  onClick={simulateLogin}
-                  className="text-sm text-yellow-700 hover:text-yellow-800 font-medium underline"
-                >
-                  Simulate login (for demo purposes)
-                </button>
               </div>
 
               <div className="space-y-3">
