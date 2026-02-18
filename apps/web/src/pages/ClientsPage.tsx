@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.tsx'
 import { apiFetch } from '../lib/api.ts'
-import Layout from './Layout.tsx'
+import Layout from '../components/Layout.tsx'
 
 interface Client {
   id: string
