@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute.tsx'
 import ClientsPage from './pages/ClientsPage.tsx'
 import ClientKBPage from './pages/ClientKBPage.tsx'
 import PromptsPage from './pages/PromptsPage.tsx'
+import HomePage from './pages/HomePage.tsx' // <-- Import HomePage
 
 function App() {
   return (
@@ -17,6 +18,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ClientsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <HomePage />
               </ProtectedRoute>
             }
           />

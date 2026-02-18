@@ -1,8 +1,10 @@
-import { X, Menu } from 'lucide-react'
+import { X, Menu, Home } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export default function Hamburger() {
   const [isOpen, setIsOpen] = useState(false)
+  const navigate = useNavigate()
 
   return (
     <>
@@ -36,6 +38,19 @@ export default function Hamburger() {
               </button>
             </div>
             {/* TODO: Add menu content here */}
+            <div className="flex-1 p-6">
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all bg-yellow-400 text-black font-medium hover:bg-yellow-500"
+                onClick={() => {
+                  setIsOpen(false)
+                  navigate('/home')
+                }}
+                type="button"
+              >
+                <Home className="w-5 h-5" />
+                <span>Home</span>
+              </button>
+            </div>
           </div>
         </>
       )}
