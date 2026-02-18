@@ -1,6 +1,7 @@
 import { LogOut, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import Hamburger from '../components/Hamburger'
 
 export default function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
@@ -19,6 +20,9 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2 relative">
+          {/* Hamburger menu button */}
+          <Hamburger />
+
           <div className="relative">
             <button
               className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center hover:bg-yellow-500 transition-colors"
