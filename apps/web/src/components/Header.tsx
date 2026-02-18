@@ -1,16 +1,15 @@
 import { LogOut, Settings } from 'lucide-react'
 import { useState } from 'react'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
+  const { signOut } = useAuth()
+
   // Todo : replace with SB user
   const userName = 'Julian Leahy'
   const userEmail = 'leahyjulian@gmail.com'
   const userInitials = 'JL'
-
-  function handleLogout() {
-    // TODO: Implement your logout logic here
-  }
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 w-full">
@@ -51,7 +50,7 @@ export default function Header() {
                     </button>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
-                      onClick={handleLogout}
+                      onClick={signOut}
                       type="button"
                     >
                       <LogOut className="w-4 h-4" />
