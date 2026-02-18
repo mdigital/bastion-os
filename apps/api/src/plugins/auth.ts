@@ -17,8 +17,8 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorateRequest('userRole', 'user')
 
   fastify.addHook('onRequest', async (request, reply) => {
-    // Skip auth for health check
-    if (request.url === '/api/health') return
+    // Skip auth for health check and public auth endpoints
+    if (request.url === '/api/health' || request.url === '/api/auth/check-email') return
 
     const authHeader = request.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
