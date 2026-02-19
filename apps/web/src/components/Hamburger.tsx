@@ -52,6 +52,7 @@ export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
               <button
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all bg-yellow-400 text-black font-medium hover:bg-yellow-500"
                 onClick={() => {
+                  setIsOpen(false)
                   navigate('/home')
                 }}
                 type="button"
