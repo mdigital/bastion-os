@@ -2,7 +2,11 @@ import { FileText } from 'lucide-react'
 import ClientBriefItem from './ClientBriefItem'
 import { clientBriefs } from '../data/mockData'
 
-export default function ClientBriefCard() {
+type Props = {
+  onNewBrief: () => void
+}
+
+export default function ClientBriefCard({ onNewBrief }: Props) {
   const visibleBriefs = clientBriefs.slice(0, 3)
 
   return (
@@ -20,6 +24,7 @@ export default function ClientBriefCard() {
       <button
         type="button"
         className="w-full py-3 mb-4 bg-yellow-400 text-black rounded-xl hover:bg-yellow-500 transition-colors font-medium"
+        onClick={onNewBrief}
       >
         Create new brief
       </button>
