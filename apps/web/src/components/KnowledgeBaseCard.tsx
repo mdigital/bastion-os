@@ -1,6 +1,22 @@
 import { Database, Search } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import KnowledgeBaseClient from './KnowledgeBaseClient'
+
+// TODO replace with actual clients
+const clients = [
+  { name: 'Geely Group', sources: 24, dotColorClass: 'bg-blue-500' },
+  { name: 'Volvo', sources: 45, dotColorClass: 'bg-indigo-500' },
+  { name: 'Acme Corporation', sources: 18, dotColorClass: 'bg-green-500' },
+  { name: 'TechStart Inc', sources: 31, dotColorClass: 'bg-purple-500' },
+  { name: 'GreenLife Foods', sources: 12, dotColorClass: 'bg-orange-500' },
+  { name: 'NordEast group', sources: 22, dotColorClass: 'bg-red-500' },
+]
 
 export default function KnowledgeBaseCard() {
+  const navigate = useNavigate()
+  const visibleClients = clients.slice(0, 4)
+  const totalSources = clients.reduce((sum, client) => sum + client.sources, 0)
+
   return (
     <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all group">
       <div className="flex items-start gap-4 mb-6">
@@ -25,45 +41,28 @@ export default function KnowledgeBaseCard() {
       </div>
 
       <div className="space-y-2 mb-4">
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-blue-500 rounded-full" />
-            <span className="text-sm font-medium">Geely Group</span>
-          </div>
-          <span className="text-xs text-gray-500">24 sources</span>
-        </div>
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-indigo-500 rounded-full" />
-            <span className="text-sm font-medium">Volvo</span>
-          </div>
-          <span className="text-xs text-gray-500">45 sources</span>
-        </div>
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-green-500 rounded-full" />
-            <span className="text-sm font-medium">Acme Corporation</span>
-          </div>
-          <span className="text-xs text-gray-500">18 sources</span>
-        </div>
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-purple-500 rounded-full" />
-            <span className="text-sm font-medium">TechStart Inc</span>
-          </div>
-          <span className="text-xs text-gray-500">31 sources</span>
-        </div>
+        {visibleClients.map((client) => (
+          <KnowledgeBaseClient
+            key={client.name}
+            name={client.name}
+            sources={client.sources}
+            dotColorClass={client.dotColorClass}
+          />
+        ))}
       </div>
 
       <button
         type="button"
         className="w-full py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium"
+        onClick={() => navigate('/')}
       >
         View all clients
       </button>
 
       <div className="mt-4 pt-4 border-t border-gray-200">
-        <p className="text-sm text-gray-600">6 clients • 152 total sources</p>
+        <p className="text-sm text-gray-600">
+          {clients.length} clients • {totalSources} total sources
+        </p>
       </div>
     </div>
   )
