@@ -1,9 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './contexts/AuthContext.tsx'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Login from './components/Login.tsx'
 import ProtectedRoute from './components/ProtectedRoute.tsx'
-import ClientsPage from './pages/ClientsPage.tsx'
+import { AuthProvider } from './contexts/AuthContext.tsx'
 import ClientKBPage from './pages/ClientKBPage.tsx'
+import ClientsPage from './pages/ClientsPage.tsx'
+import HomePage from './pages/HomePage.tsx'
 import PromptsPage from './pages/PromptsPage.tsx'
 
 function App() {
@@ -17,6 +18,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ClientsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <HomePage />
               </ProtectedRoute>
             }
           />
