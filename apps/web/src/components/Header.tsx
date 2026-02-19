@@ -3,16 +3,16 @@ import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import Hamburger from '../components/Hamburger'
 import { useNavigate } from 'react-router-dom'
+import { currentUser } from '../data/mockData'
 
 export default function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const { signOut } = useAuth()
   const navigate = useNavigate()
 
-  // Todo : replace with SB user
-  const userName = 'Julian Leahy'
-  const userEmail = 'leahyjulian@gmail.com'
-  const userInitials = 'JL'
+  const userName = currentUser.name
+  const userEmail = currentUser.email
+  const userInitials = currentUser.initials
 
   const handleLogout = () => {
     signOut()

@@ -1,16 +1,7 @@
 import { Database, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import KnowledgeBaseClient from './KnowledgeBaseClient'
-
-// TODO replace with actual clients
-const clients = [
-  { name: 'Geely Group', sources: 24, dotColorClass: 'bg-blue-500' },
-  { name: 'Volvo', sources: 45, dotColorClass: 'bg-indigo-500' },
-  { name: 'Acme Corporation', sources: 18, dotColorClass: 'bg-green-500' },
-  { name: 'TechStart Inc', sources: 31, dotColorClass: 'bg-purple-500' },
-  { name: 'GreenLife Foods', sources: 12, dotColorClass: 'bg-orange-500' },
-  { name: 'NordEast group', sources: 22, dotColorClass: 'bg-red-500' },
-]
+import { knowledgeBaseClients as clients } from '../data/mockData'
 
 export default function KnowledgeBaseCard() {
   const navigate = useNavigate()
