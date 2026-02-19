@@ -2,26 +2,37 @@ import { LogOut, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import Hamburger from '../components/Hamburger'
+import { useNavigate } from 'react-router-dom'
 
 export default function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const { signOut } = useAuth()
+  const navigate = useNavigate()
 
   // Todo : replace with SB user
   const userName = 'Julian Leahy'
   const userEmail = 'leahyjulian@gmail.com'
   const userInitials = 'JL'
 
+  const handleLogout = () => {
+    signOut()
+  }
+
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 w-full">
       <div className="px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-lg text-gray-700">Bastion IO</span>
-        </div>
+        <button
+          className="text-lg text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
+          type="button"
+          onClick={() => {
+            navigate('/home')
+          }}
+        >
+          Bastion IO
+        </button>
 
         <div className="flex items-center gap-2 relative">
-          {/* Hamburger menu button */}
-          <Hamburger />
+          <Hamburger userEmail={userEmail} handleLogout={handleLogout} />
 
           <div className="relative">
             <button
@@ -54,7 +65,7 @@ export default function Header() {
                     </button>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
-                      onClick={signOut}
+                      onClick={handleLogout}
                       type="button"
                     >
                       <LogOut className="w-4 h-4" />
