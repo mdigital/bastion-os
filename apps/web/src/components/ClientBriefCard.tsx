@@ -1,6 +1,10 @@
 import { FileText } from 'lucide-react'
+import ClientBriefItem from './ClientBriefItem'
+import { clientBriefs } from '../data/mockData'
 
 export default function ClientBriefCard() {
+  const visibleBriefs = clientBriefs.slice(0, 3)
+
   return (
     <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all group">
       <div className="flex items-start gap-4 mb-6">
@@ -21,36 +25,15 @@ export default function ClientBriefCard() {
       </button>
 
       <div className="space-y-3 mb-4">
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-yellow-400 rounded-full" />
-            <div>
-              <p className="font-medium text-sm">Acme Corporation</p>
-              <p className="text-xs text-gray-600">Sustainable product launch</p>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500">In Progress</div>
-        </div>
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-green-400 rounded-full" />
-            <div>
-              <p className="font-medium text-sm">TechStart Inc</p>
-              <p className="text-xs text-gray-600">SaaS platform awareness</p>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500">Finalised</div>
-        </div>
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-yellow-400 rounded-full" />
-            <div>
-              <p className="font-medium text-sm">GreenLife Foods</p>
-              <p className="text-xs text-gray-600">Organic snack line PR</p>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500">Draft</div>
-        </div>
+        {visibleBriefs.map((brief) => (
+          <ClientBriefItem
+            key={brief.id}
+            clientName={brief.clientName}
+            briefTitle={brief.briefTitle}
+            status={brief.status}
+            dotColorClass={brief.dotColorClass}
+          />
+        ))}
       </div>
 
       <button

@@ -33,6 +33,20 @@ export const clientBriefs = [
     status: 'Draft',
     dotColorClass: 'bg-yellow-400',
   },
+  {
+    id: '4',
+    clientName: 'NextGen Education',
+    briefTitle: 'Student recruitment campaign for online courses',
+    status: 'In Progress',
+    dotColorClass: 'bg-blue-400',
+  },
+  {
+    id: '5',
+    clientName: 'Artisan Coffee Co',
+    briefTitle: 'Social media content series for new coffee blend',
+    status: 'Draft',
+    dotColorClass: 'bg-orange-400',
+  },
 ]
 
 export const currentUser = {
