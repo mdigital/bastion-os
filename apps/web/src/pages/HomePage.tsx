@@ -1,18 +1,16 @@
+import ClientBriefCard from '../components/ClientBriefCard'
+import KnowledgeBaseCard from '../components/KnowledgeBaseCard'
 import Layout from '../components/Layout'
-import { useNavigate } from 'react-router-dom'
 
 export default function HomePage() {
-  const navigate = useNavigate()
   return (
     <Layout>
-      <div>Knowledge Base Card</div>
-      <div>Client Briefs Card</div>
-      <button
-        className="mt-6 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        onClick={() => navigate('/')}
-      >
-        Go to All Clients
-      </button>
+      <div className="bg-bone relative overflow-hidden -mx-8 -my-12 px-8 py-12 min-h-screen">
+        <div className="relative z-10 grid grid-cols-12 gap-6 auto-rows-auto max-w-screen-2xl mx-auto">
+          <KnowledgeBaseCard />
+          <ClientBriefCard />
+        </div>
+      </div>
     </Layout>
   )
 }
