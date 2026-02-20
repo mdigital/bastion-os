@@ -6,6 +6,7 @@ import type { KeyInfo } from '../types/KeyInfo'
 import type { SectionData } from '../types/SectionData'
 import { defaultSections } from '../data/defaultSection'
 import UploadStep from '../components/UploadStep'
+import ProgressSteps from '../components/ProgressSteps'
 
 type Step = 'upload' | 'keyInfo' | 'triage' | 'sections'
 
@@ -18,7 +19,6 @@ export default function HomePage() {
   const [, setCurrentStep] = useState<Step>('upload')
 
   const handleNewBrief = () => {
-    console.log('handle new brief')
     setKeyInfo({
       client: 'Acme Corporation',
       jobToBeDone:
@@ -37,23 +37,37 @@ export default function HomePage() {
   const handleFileUpload = () => {
     console.log('file upload')
   }
+
   return (
     <Layout>
-      <div className="bg-bone relative overflow-hidden -mx-8 -my-12 px-8 py-12 min-h-screen">
-        <div className="relative z-10 grid grid-cols-12 gap-6 auto-rows-auto max-w-screen-2xl mx-auto">
-          {currentView === 'home' && (
-            <>
+      <>
+        {/* Home View */}
+        {currentView === 'home' && (
+          <div className="max-w-screen-2xl mx-auto px-8 py-12 grid grid-cols-12 gap-6 items-stretch">
+            <div className="col-span-12 md:col-span-6 flex">
               <KnowledgeBaseCard />
+            </div>
+            <div className="col-span-12 md:col-span-6 flex">
               <ClientBriefCard onNewBrief={handleNewBrief} />
-            </>
-          )}
-          {currentView === 'brief' && (
-            <>
+            </div>
+          </div>
+        )}
+
+        {/* Brief View */}
+        {currentView === 'brief' && (
+          <>
+            <div className="w-full">
+              <div className="max-w-screen-2xl mx-auto px-8 py-6">
+                <ProgressSteps />
+              </div>
+            </div>
+
+            <div className="max-w-2xl mx-auto px-8 py-12">
               <UploadStep onUpload={handleFileUpload} />
-            </>
-          )}
-        </div>
-      </div>
+            </div>
+          </>
+        )}
+      </>
     </Layout>
   )
 }

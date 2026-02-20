@@ -9,7 +9,7 @@ export default function KnowledgeBaseCard() {
   const totalSources = clients.reduce((sum, client) => sum + client.sources, 0)
 
   return (
-    <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all group">
+    <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all group flex-1 flex flex-col">
       <div className="flex items-start gap-4 mb-6">
         <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
           <Database className="w-7 h-7 text-yellow-400" />

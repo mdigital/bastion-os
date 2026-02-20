@@ -10,7 +10,7 @@ export default function ClientBriefCard({ onNewBrief }: Props) {
   const visibleBriefs = clientBriefs.slice(0, 3)
 
   return (
-    <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all group">
+    <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all group flex-1 flex flex-col">
       <div className="flex items-start gap-4 mb-6">
         <div className="w-14 h-14 bg-yellow-400 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
           <FileText className="w-7 h-7 text-black" />
