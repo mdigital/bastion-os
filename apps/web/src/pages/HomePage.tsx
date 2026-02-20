@@ -31,6 +31,7 @@ export default function HomePage() {
     })
     setSections(sections)
     setCurrentStep('upload')
+    // setCurrentStep('keyInfo')
     setCurrentView('brief')
   }
 
