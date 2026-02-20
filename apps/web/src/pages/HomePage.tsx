@@ -7,8 +7,7 @@ import UploadStep from '../components/UploadStep'
 import { defaultSections } from '../data/defaultSection'
 import type { KeyInfo } from '../types/KeyInfo'
 import type { SectionData } from '../types/SectionData'
-
-type Step = 'upload' | 'keyInfo' | 'triage' | 'sections'
+import type { Step } from '@bastion-os/shared'
 
 export default function HomePage() {
   const [, setKeyInfo] = useState<KeyInfo>()

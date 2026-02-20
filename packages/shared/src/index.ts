@@ -9,6 +9,17 @@ export type AgentStatus = 'active' | 'paused' | 'complete'
 export type SignalPriority = 'high' | 'medium' | 'low'
 export type SignalStatus = 'new' | 'reviewed' | 'converted'
 
+// ─── Steps ──────────────────────────────────────────────────────────────────
+
+export const STEPS = [
+  { id: 'upload', label: 'Upload' },
+  { id: 'keyInfo', label: 'Key Info' },
+  { id: 'triage', label: 'Triage' },
+  { id: 'sections', label: 'Enhancement' },
+] as const
+
+export type Step = (typeof STEPS)[number]['id']
+
 // ─── Core entities ──────────────────────────────────────────────────────────
 
 export interface Organisation {

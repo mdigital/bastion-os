@@ -1,13 +1,6 @@
 import { CheckCircle2 } from 'lucide-react'
-
-const STEPS = [
-  { id: 'upload', label: 'Upload' },
-  { id: 'keyInfo', label: 'Key Info' },
-  { id: 'triage', label: 'Triage' },
-  { id: 'sections', label: 'Enhancement' },
-] as const
-
-type Step = (typeof STEPS)[number]['id']
+import { STEPS } from '@bastion-os/shared'
+import type { Step } from '@bastion-os/shared'
 
 type Props = {
   currentStep: Step
