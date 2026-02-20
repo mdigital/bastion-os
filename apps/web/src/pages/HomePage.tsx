@@ -1,21 +1,20 @@
+import type { Step } from '@bastion-os/shared'
 import { useState } from 'react'
 import ClientBriefCard from '../components/ClientBriefCard'
 import KnowledgeBaseCard from '../components/KnowledgeBaseCard'
 import Layout from '../components/Layout'
 import ProgressSteps from '../components/ProgressSteps'
 import UploadStep from '../components/UploadStep'
+import { useAppState } from '../contexts/useAppState'
 import { defaultSections } from '../data/defaultSection'
 import type { KeyInfo } from '../types/KeyInfo'
 import type { SectionData } from '../types/SectionData'
-import type { Step } from '@bastion-os/shared'
 
 export default function HomePage() {
   const [, setKeyInfo] = useState<KeyInfo>()
   const [sections, setSections] = useState<SectionData[]>(defaultSections)
-  const [currentView, setCurrentView] = useState<
-    'home' | 'listing' | 'brief' | 'knowledgeBase' | 'admin' | 'approval'
-  >('home')
   const [currentStep, setCurrentStep] = useState<Step>('upload')
+  const { currentView, setCurrentView } = useAppState()
 
   const handleNewBrief = () => {
     setKeyInfo({

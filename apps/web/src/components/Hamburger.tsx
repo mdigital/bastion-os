@@ -1,6 +1,7 @@
 import { X, Menu, Home, FileText, BookOpen, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAppState } from '../contexts/useAppState'
 
 interface HamburgerProps {
   userEmail: string
@@ -10,6 +11,7 @@ interface HamburgerProps {
 export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
+  const { currentView, setCurrentView } = useAppState()
 
   const situationItems = [
     { id: 'briefs', label: 'Client Briefs', icon: FileText, view: 'listing' as const },
@@ -54,6 +56,7 @@ export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
                 onClick={() => {
                   setIsOpen(false)
                   navigate('/home')
+                  setCurrentView('home')
                 }}
                 type="button"
               >
@@ -66,13 +69,15 @@ export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
               </p>
               {situationItems.map((item) => {
                 const Icon = item.icon
-                // const isActive = currentView === item.view;
-                const isActive = false // TODO
+                const isActive = currentView === item.view
 
                 return (
                   <button
                     key={item.id}
-                    onClick={() => console.log('Handle Nav')}
+                    onClick={() => {
+                      setIsOpen(false)
+                      setCurrentView(item.view)
+                    }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                       isActive
                         ? 'bg-yellow-400 text-black font-medium'
