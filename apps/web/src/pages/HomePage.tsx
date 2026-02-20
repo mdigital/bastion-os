@@ -2,11 +2,11 @@ import { useState } from 'react'
 import ClientBriefCard from '../components/ClientBriefCard'
 import KnowledgeBaseCard from '../components/KnowledgeBaseCard'
 import Layout from '../components/Layout'
+import ProgressSteps from '../components/ProgressSteps'
+import UploadStep from '../components/UploadStep'
+import { defaultSections } from '../data/defaultSection'
 import type { KeyInfo } from '../types/KeyInfo'
 import type { SectionData } from '../types/SectionData'
-import { defaultSections } from '../data/defaultSection'
-import UploadStep from '../components/UploadStep'
-import ProgressSteps from '../components/ProgressSteps'
 
 type Step = 'upload' | 'keyInfo' | 'triage' | 'sections'
 
@@ -16,7 +16,7 @@ export default function HomePage() {
   const [currentView, setCurrentView] = useState<
     'home' | 'listing' | 'brief' | 'knowledgeBase' | 'admin' | 'approval'
   >('home')
-  const [, setCurrentStep] = useState<Step>('upload')
+  const [currentStep, setCurrentStep] = useState<Step>('upload')
 
   const handleNewBrief = () => {
     setKeyInfo({
@@ -56,15 +56,8 @@ export default function HomePage() {
         {/* Brief View */}
         {currentView === 'brief' && (
           <>
-            <div className="w-full">
-              <div className="max-w-screen-2xl mx-auto px-8 py-6">
-                <ProgressSteps />
-              </div>
-            </div>
-
-            <div className="max-w-2xl mx-auto px-8 py-12">
-              <UploadStep onUpload={handleFileUpload} />
-            </div>
+            <ProgressSteps currentStep={currentStep} setCurrentStep={setCurrentStep} />
+            <UploadStep onUpload={handleFileUpload} />
           </>
         )}
       </>
