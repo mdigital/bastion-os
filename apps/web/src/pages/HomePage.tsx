@@ -9,12 +9,14 @@ import { useAppState } from '../contexts/useAppState'
 import { defaultSections } from '../data/defaultSection'
 import type { KeyInfo } from '../types/KeyInfo'
 import type { SectionData } from '../types/SectionData'
+import { KeyInformationStep } from '../components/KeyInformationStep'
 
 export default function HomePage() {
-  const [, setKeyInfo] = useState<KeyInfo>()
+  const [keyInfo, setKeyInfo] = useState<KeyInfo>()
   const [sections, setSections] = useState<SectionData[]>(defaultSections)
   const [currentStep, setCurrentStep] = useState<Step>('upload')
   const { currentView, setCurrentView } = useAppState()
+  const [, setUploadedFile] = useState<File | null>(null)
 
   const handleNewBrief = () => {
     setKeyInfo({
@@ -32,8 +34,17 @@ export default function HomePage() {
     setCurrentView('brief')
   }
 
-  const handleFileUpload = () => {
-    console.log('file upload')
+  const handleFileUpload = (file: File) => {
+    console.log('file upload', file)
+    setUploadedFile(file)
+    // Simulate
+    setTimeout(() => {
+      setCurrentStep('keyInfo')
+    }, 1500)
+  }
+
+  const handleKeyInfoEdit = (field: keyof KeyInfo, value: string) => {
+    console.log(`field: ${field} value: ${value}`)
   }
 
   return (
@@ -55,7 +66,15 @@ export default function HomePage() {
         {currentView === 'brief' && (
           <>
             <ProgressSteps currentStep={currentStep} setCurrentStep={setCurrentStep} />
-            <UploadStep onUpload={handleFileUpload} />
+            {currentStep === 'upload' && <UploadStep onUpload={handleFileUpload} />}
+            {currentStep === 'keyInfo' && keyInfo && (
+              <KeyInformationStep
+                keyInfo={keyInfo}
+                onNext={() => setCurrentStep('triage')}
+                onEdit={handleKeyInfoEdit}
+                onBack={() => setCurrentStep('upload')}
+              />
+            )}
           </>
         )}
       </>
