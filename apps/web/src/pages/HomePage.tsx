@@ -1,6 +1,8 @@
 import type { Step } from '@bastion-os/shared'
 import { useState } from 'react'
 import ClientBriefCard from '../components/ClientBriefCard'
+import DepartmentTriageStep from '../components/DepartmentTriageStep'
+import KeyInformationStep from '../components/KeyInformationStep'
 import KnowledgeBaseCard from '../components/KnowledgeBaseCard'
 import Layout from '../components/Layout'
 import ProgressSteps from '../components/ProgressSteps'
@@ -9,7 +11,6 @@ import { useAppState } from '../contexts/useAppState'
 import { defaultSections } from '../data/defaultSection'
 import type { KeyInfo } from '../types/KeyInfo'
 import type { SectionData } from '../types/SectionData'
-import { KeyInformationStep } from '../components/KeyInformationStep'
 
 export default function HomePage() {
   const [keyInfo, setKeyInfo] = useState<KeyInfo>()
@@ -17,6 +18,8 @@ export default function HomePage() {
   const [currentStep, setCurrentStep] = useState<Step>('upload')
   const { currentView, setCurrentView } = useAppState()
   const [, setUploadedFile] = useState<File | null>(null)
+  const [leadDepartment, setLeadDepartment] = useState('Digital')
+  const [, setSupportingDepartments] = useState(['Social', 'Creative', 'PR'])
 
   const handleNewBrief = () => {
     setKeyInfo({
@@ -30,8 +33,9 @@ export default function HomePage() {
       briefLevel: 'New Project Brief',
     })
     setSections(sections)
-    setCurrentStep('upload')
+    //setCurrentStep('upload')
     // setCurrentStep('keyInfo')
+    setCurrentStep('triage')
     setCurrentView('brief')
   }
 
@@ -74,6 +78,16 @@ export default function HomePage() {
                 onNext={() => setCurrentStep('triage')}
                 onEdit={handleKeyInfoEdit}
                 onBack={() => setCurrentStep('upload')}
+              />
+            )}
+            {currentStep === 'triage' && (
+              <DepartmentTriageStep
+                leadDepartment={leadDepartment}
+                rationale="This campaign requires a digital-first approach given the target audience of Millennials and Gen Z who are primarily reached through online channels. The brief emphasizes social media engagement and digital advertising as key components. Digital should lead the strategy with Social providing content expertise, Creative developing the brand narrative, and PR managing reputation and thought leadership aspects."
+                onLeadDepartmentChange={setLeadDepartment}
+                onSupportingDepartmentsChange={setSupportingDepartments}
+                onNext={() => setCurrentStep('sections')}
+                onBack={() => setCurrentStep('keyInfo')}
               />
             )}
           </>

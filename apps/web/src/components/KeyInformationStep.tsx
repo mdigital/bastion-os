@@ -1,4 +1,4 @@
-import { Building2, Briefcase, Calendar, ArrowLeft, Sparkles, DollarSign } from 'lucide-react'
+import { ArrowLeft, Briefcase, Building2, Calendar, DollarSign, Sparkles } from 'lucide-react'
 
 interface KeyInfo {
   client: string
@@ -16,7 +16,12 @@ interface KeyInformationStepProps {
   onBack: () => void
 }
 
-export function KeyInformationStep({ keyInfo, onNext, onEdit, onBack }: KeyInformationStepProps) {
+export default function KeyInformationStep({
+  keyInfo,
+  onNext,
+  onEdit,
+  onBack,
+}: KeyInformationStepProps) {
   const fields = [
     { key: 'client' as const, label: 'Client', icon: Building2, placeholder: 'Client name' },
     {
