@@ -8,6 +8,8 @@ import ClientsPage from './pages/ClientsPage.tsx'
 import HomePage from './pages/HomePage.tsx'
 import AdminPage from './pages/AdminPage.tsx'
 import PromptsPage from './pages/PromptsPage.tsx'
+import PracticesPage from './pages/PracticesPage.tsx'
+import PracticeTemplatesPage from './pages/PracticeTemplatesPage.tsx'
 
 function App() {
   return (
@@ -50,6 +52,8 @@ function App() {
             >
               <Route index element={<Navigate to="prompts" replace />} />
               <Route path="prompts" element={<PromptsPage />} />
+              <Route path="practices" element={<PracticesPage />} />
+              <Route path="practice-templates" element={<PracticeTemplatesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
