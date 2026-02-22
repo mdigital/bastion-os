@@ -59,13 +59,15 @@ export default function BriefSectionsStep({
   const [showExportModal, setShowExportModal] = useState(false)
 
   return (
-    <div className="mx-auto px-10 py-12">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="mb-4">Enhanced Client Brief</h2>
-          <p className="text-gray-700 flex items-center justify-center gap-2">
-            Review all sections and use AI insights to enhance your brief
-          </p>
+    <div className="mx-auto py-12">
+      <div className="max-w-368 mx-auto px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="mb-4">Enhanced Client Brief</h2>
+            <p className="text-gray-700 flex items-center justify-center gap-2">
+              Review all sections and use AI insights to enhance your brief
+            </p>
+          </div>
         </div>
 
         {/* Key Information Summary */}
@@ -241,3 +243,6 @@ export default function BriefSectionsStep({
     </div>
   )
 }
+
+// 1472
+// 1280
