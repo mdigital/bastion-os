@@ -6,6 +6,7 @@ import { AuthProvider } from './contexts/AuthContext.tsx'
 import ClientKBPage from './pages/ClientKBPage.tsx'
 import ClientsPage from './pages/ClientsPage.tsx'
 import HomePage from './pages/HomePage.tsx'
+import AdminPage from './pages/AdminPage.tsx'
 import PromptsPage from './pages/PromptsPage.tsx'
 
 function App() {
@@ -40,13 +41,16 @@ function App() {
               }
             />
             <Route
-              path="/prompts"
+              path="/admin"
               element={
                 <ProtectedRoute>
-                  <PromptsPage />
+                  <AdminPage />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<Navigate to="prompts" replace />} />
+              <Route path="prompts" element={<PromptsPage />} />
+            </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>

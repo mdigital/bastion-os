@@ -16,6 +16,7 @@ import clientRoutes from './routes/admin/clients.js'
 import meRoutes from './routes/me.js'
 import kbSourceRoutes from './routes/kb/sources.js'
 import kbChatRoutes from './routes/kb/chat.js'
+import kbSuggestionRoutes from './routes/kb/suggestions.js'
 import promptRoutes from './routes/admin/prompts.js'
 import checkEmailRoute from './routes/auth/check-email.js'
 
@@ -58,6 +59,7 @@ export async function buildApp() {
   await app.register(clientRoutes)
   await app.register(kbSourceRoutes)
   await app.register(kbChatRoutes)
+  await app.register(kbSuggestionRoutes)
 
   await app.register(promptRoutes)
   await app.register(checkEmailRoute)

@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import type { Prompt } from '@bastion-os/shared'
-import { useAuth } from '../contexts/AuthContext.tsx'
 import { apiFetch } from '../lib/api.ts'
 
 interface PromptDraft {
@@ -10,7 +8,6 @@ interface PromptDraft {
 }
 
 export default function PromptsPage() {
-  const { userRole, signOut } = useAuth()
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [drafts, setDrafts] = useState<Record<string, PromptDraft>>({})
   const [loading, setLoading] = useState(true)
@@ -18,11 +15,6 @@ export default function PromptsPage() {
   const [saving, setSaving] = useState<string | null>(null)
 
   useEffect(() => {
-    if (userRole !== 'admin') {
-      setLoading(false)
-      return
-    }
-
     apiFetch<Prompt[]>('/api/admin/prompts')
       .then((data) => {
         setPrompts(data)
@@ -38,16 +30,7 @@ export default function PromptsPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [userRole])
-
-  if (userRole !== 'admin') {
-    return (
-      <div style={{ maxWidth: 600, margin: '40px auto', padding: '0 16px' }}>
-        <p>Not authorised</p>
-        <Link to="/">Back to home</Link>
-      </div>
-    )
-  }
+  }, [])
 
   function getContent(prompt: Prompt): string {
     return drafts[prompt.id]?.content ?? prompt.content
@@ -116,23 +99,15 @@ export default function PromptsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: '40px auto', padding: '0 16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>Prompts</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link to="/">Home</Link>
-          <button type="button" onClick={signOut}>
-            Sign out
-          </button>
-        </div>
-      </div>
+    <div>
+      <h2>Prompts</h2>
 
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
       {Object.entries(grouped).map(([category, items]) => (
         <div key={category} style={{ marginBottom: 32 }}>
-          <h2>{category}</h2>
+          <h3>{category}</h3>
           {items.map((prompt) => (
             <div key={prompt.id} style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>

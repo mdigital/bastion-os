@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import type { FormEvent, DragEvent } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { apiFetch } from '../lib/api.ts'
 import { supabase } from '../lib/supabase.ts'
@@ -28,14 +28,27 @@ interface ConversationDetail extends Conversation {
   messages: Message[]
 }
 
+interface Suggestion {
+  id: string
+  key: string
+  display_name: string
+  content: string
+}
+
+interface UploadingFile {
+  name: string
+  status: 'uploading' | 'done' | 'error'
+}
+
 export default function ClientKBPage() {
   const { clientId } = useParams<{ clientId: string }>()
   const base = `/api/kb/clients/${clientId}`
 
   // Sources state
   const [sources, setSources] = useState<Source[]>([])
-  const [uploading, setUploading] = useState(false)
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
 
   // Conversations state
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -44,41 +57,106 @@ export default function ClientKBPage() {
   const [sending, setSending] = useState(false)
   const [creatingConv, setCreatingConv] = useState(false)
 
+  // Suggestions state
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+
   const [error, setError] = useState<string | null>(null)
 
-  // Load sources + conversations on mount
+  // Load sources + conversations + suggestions on mount
   useEffect(() => {
     apiFetch<Source[]>(`${base}/sources`).then(setSources).catch((e) => setError(e.message))
     apiFetch<Conversation[]>(`${base}/conversations`).then(setConversations).catch((e) => setError(e.message))
+    apiFetch<Suggestion[]>('/api/kb/suggestions').then(setSuggestions).catch((e) => setError(e.message))
   }, [base])
 
-  async function handleUpload(e: FormEvent) {
-    e.preventDefault()
-    const file = fileRef.current?.files?.[0]
-    if (!file) return
+  async function uploadSingleFile(file: File): Promise<Source | null> {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('Not authenticated')
 
-    setUploading(true)
+    const form = new FormData()
+    form.append('file', file)
+
+    const res = await fetch(`${base}/sources`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: form,
+    })
+    if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+    return (await res.json()) as Source
+  }
+
+  const handleFiles = useCallback(async (files: FileList | File[]) => {
+    const fileArray = Array.from(files)
+    if (fileArray.length === 0) return
+
     setError(null)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
 
-      const form = new FormData()
-      form.append('file', file)
+    // Add all files as "uploading"
+    const newUploading: UploadingFile[] = fileArray.map((f) => ({
+      name: f.name,
+      status: 'uploading' as const,
+    }))
+    setUploadingFiles((prev) => [...prev, ...newUploading])
 
-      const res = await fetch(`${base}/sources`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: form,
-      })
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
-      const source = (await res.json()) as Source
-      setSources((prev) => [...prev, source])
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i]
+      try {
+        const source = await uploadSingleFile(file)
+        if (source) {
+          setSources((prev) => [...prev, source])
+        }
+        setUploadingFiles((prev) =>
+          prev.map((u) =>
+            u.name === file.name && u.status === 'uploading'
+              ? { ...u, status: 'done' as const }
+              : u,
+          ),
+        )
+      } catch (err) {
+        setUploadingFiles((prev) =>
+          prev.map((u) =>
+            u.name === file.name && u.status === 'uploading'
+              ? { ...u, status: 'error' as const }
+              : u,
+          ),
+        )
+        setError(err instanceof Error ? err.message : `Failed to upload ${file.name}`)
+      }
+    }
+
+    // Clear completed uploads after a brief delay
+    setTimeout(() => {
+      setUploadingFiles((prev) => prev.filter((u) => u.status === 'uploading'))
+    }, 2000)
+  }, [base])
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  function handleDragLeave(e: DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+  }
+
+  function handleDrop(e: DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+    if (e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files)
+    }
+  }
+
+  function handleDropZoneClick() {
+    fileRef.current?.click()
+  }
+
+  function handleFileInputChange() {
+    const files = fileRef.current?.files
+    if (files && files.length > 0) {
+      handleFiles(files)
       if (fileRef.current) fileRef.current.value = ''
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
-    } finally {
-      setUploading(false)
     }
   }
 
@@ -161,8 +239,10 @@ export default function ClientKBPage() {
     }
   }
 
+  const isUploading = uploadingFiles.some((u) => u.status === 'uploading')
+
   return (
-    <div style={{ maxWidth: 960, margin: '40px auto', padding: '0 16px' }}>
+    <div style={{ maxWidth: 1280, margin: '40px auto', padding: '0 16px' }}>
       <Link to="/">&larr; All clients</Link>
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
@@ -170,12 +250,65 @@ export default function ClientKBPage() {
         {/* Sources panel */}
         <div style={{ flex: '0 0 320px' }}>
           <h2>Sources</h2>
-          <form onSubmit={handleUpload} style={{ marginBottom: 16 }}>
-            <input type="file" ref={fileRef} />
-            <button type="submit" disabled={uploading}>
-              {uploading ? 'Uploading...' : 'Upload'}
-            </button>
-          </form>
+
+          {/* Drop zone */}
+          <div
+            onClick={handleDropZoneClick}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            style={{
+              border: `2px dashed ${dragOver ? '#2196f3' : '#ccc'}`,
+              borderRadius: 8,
+              padding: 24,
+              textAlign: 'center',
+              cursor: 'pointer',
+              marginBottom: 16,
+              background: dragOver ? '#e3f2fd' : '#fafafa',
+              transition: 'border-color 0.2s, background 0.2s',
+            }}
+          >
+            <input
+              type="file"
+              ref={fileRef}
+              multiple
+              onChange={handleFileInputChange}
+              style={{ display: 'none' }}
+            />
+            <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
+              {isUploading
+                ? 'Uploading...'
+                : 'Drag & drop files here, or click to browse'}
+            </p>
+          </div>
+
+          {/* Upload progress */}
+          {uploadingFiles.length > 0 && (
+            <ul style={{ listStyle: 'none', padding: 0, marginBottom: 12 }}>
+              {uploadingFiles.map((u, i) => (
+                <li
+                  key={`${u.name}-${i}`}
+                  style={{
+                    padding: '4px 0',
+                    fontSize: 13,
+                    color:
+                      u.status === 'uploading'
+                        ? '#1976d2'
+                        : u.status === 'done'
+                          ? '#388e3c'
+                          : '#d32f2f',
+                  }}
+                >
+                  {u.name}{' '}
+                  {u.status === 'uploading' && '— uploading...'}
+                  {u.status === 'done' && '— done'}
+                  {u.status === 'error' && '— failed'}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Source list */}
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {sources.map((s) => (
               <li
@@ -199,7 +332,9 @@ export default function ClientKBPage() {
               </li>
             ))}
           </ul>
-          {sources.length === 0 && <p style={{ color: '#888' }}>No documents yet.</p>}
+          {sources.length === 0 && !isUploading && (
+            <p style={{ color: '#888' }}>No documents yet.</p>
+          )}
         </div>
 
         {/* Chat panel */}
@@ -301,6 +436,39 @@ export default function ClientKBPage() {
             </div>
           )}
         </div>
+
+        {/* Suggestions sidebar — only when a conversation is active */}
+        {activeConv && suggestions.length > 0 && (
+          <div style={{ flex: '0 0 320px' }}>
+            <h2>Suggestions</h2>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 8,
+              }}
+            >
+              {suggestions.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setMsgInput(s.content)}
+                  style={{
+                    padding: '10px 8px',
+                    fontSize: 13,
+                    border: '1px solid #ddd',
+                    borderRadius: 6,
+                    background: '#fafafa',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  {s.display_name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

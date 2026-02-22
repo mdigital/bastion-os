@@ -50,7 +50,7 @@ export default function ClientsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1>Clients</h1>
           <div style={{ display: 'flex', gap: 8 }}>
-            {userRole === 'admin' && <Link to="/prompts">Prompts</Link>}
+            {userRole === 'admin' && <Link to="/admin">Admin</Link>}
             <button type="button" onClick={signOut}>
               Sign out
             </button>
