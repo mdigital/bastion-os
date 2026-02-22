@@ -11,15 +11,42 @@ import { useAppState } from '../contexts/useAppState'
 import { defaultSections } from '../data/defaultSection'
 import type { KeyInfo } from '../types/KeyInfo'
 import type { SectionData } from '../types/SectionData'
+import BriefSectionsStep from '../components/BriefSectionsStep'
 
 export default function HomePage() {
-  const [keyInfo, setKeyInfo] = useState<KeyInfo>()
+  const [keyInfo, setKeyInfo] = useState<KeyInfo>({
+    client: 'Acme Corporation',
+    jobToBeDone:
+      'Launch integrated multi-channel campaign for new sustainable product line targeting environmentally conscious millennials and Gen Z consumers',
+    budget: '$250,000',
+    dueDate: '2025-03-15',
+    liveDate: '2025-04-01',
+    campaignDuration: '6 months',
+    briefLevel: 'New Project Brief',
+  })
   const [sections, setSections] = useState<SectionData[]>(defaultSections)
   const [currentStep, setCurrentStep] = useState<Step>('upload')
   const { currentView, setCurrentView } = useAppState()
   const [, setUploadedFile] = useState<File | null>(null)
   const [leadDepartment, setLeadDepartment] = useState('Digital')
-  const [, setSupportingDepartments] = useState(['Social', 'Creative', 'PR'])
+  const [supportingDepartments, setSupportingDepartments] = useState(['Social', 'Creative', 'PR'])
+  const [showComparison] = useState(false)
+  const [approverComments, setApproverComments] = useState<{
+    [key: number]: { comment: string; approverName: string; actioned: boolean }
+  }>({
+    0: {
+      comment:
+        "Great start on the objective, but please add specific success metrics - what does 'market leadership' mean quantitatively? Also, clarify the timeline for achieving these objectives.",
+      approverName: 'Sarah Chen',
+      actioned: false,
+    },
+    2: {
+      comment:
+        'The target audience definition needs more depth. Can we include specific psychographics, media consumption habits, and purchase behaviour patterns?',
+      approverName: 'Marcus Thompson',
+      actioned: false,
+    },
+  })
 
   const handleNewBrief = () => {
     setKeyInfo({
@@ -33,9 +60,7 @@ export default function HomePage() {
       briefLevel: 'New Project Brief',
     })
     setSections(sections)
-    //setCurrentStep('upload')
-    // setCurrentStep('keyInfo')
-    setCurrentStep('triage')
+    setCurrentStep('upload')
     setCurrentView('brief')
   }
 
@@ -50,6 +75,23 @@ export default function HomePage() {
 
   const handleKeyInfoEdit = (field: keyof KeyInfo, value: string) => {
     console.log(`field: ${field} value: ${value}`)
+  }
+
+  const handleSectionUpdate = (index: number, content: string) => {
+    const newSections = [...sections]
+    newSections[index].content = content
+    setSections(newSections)
+  }
+
+  const handleMarkCommentActioned = (sectionIndex: number) => {
+    const updatedComments = {
+      ...approverComments,
+      [sectionIndex]: {
+        ...approverComments[sectionIndex],
+        actioned: true,
+      },
+    }
+    setApproverComments(updatedComments)
   }
 
   return (
@@ -88,6 +130,19 @@ export default function HomePage() {
                 onSupportingDepartmentsChange={setSupportingDepartments}
                 onNext={() => setCurrentStep('sections')}
                 onBack={() => setCurrentStep('keyInfo')}
+              />
+            )}
+            {currentStep === 'sections' && !showComparison && (
+              <BriefSectionsStep
+                onKeyInfoChange={handleKeyInfoEdit}
+                keyInfo={keyInfo}
+                onLeadDepartmentChange={setLeadDepartment}
+                leadDepartment={leadDepartment}
+                sections={sections}
+                onSectionUpdate={handleSectionUpdate}
+                approverComments={approverComments}
+                onMarkCommentActioned={handleMarkCommentActioned}
+                supportingDepartments={supportingDepartments}
               />
             )}
           </>
