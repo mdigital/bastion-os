@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Mail, Lock, ArrowRight, Check, Loader } from 'lucide-react'
 
@@ -12,6 +13,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [resentMessage, setResentMessage] = useState('')
+  const navigate = useNavigate()
 
   const trimmedEmail = email.trim()
 
@@ -68,6 +70,7 @@ export default function Login() {
           password,
         })
         if (signInErr) throw new Error(signInErr.message)
+        navigate('/', { replace: true })
       } else {
         await sendMagicLink()
         setStep('sent')
