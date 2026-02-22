@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Mail, ArrowRight, Check, Loader } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Check, Loader } from 'lucide-react'
 
 type LoginStep = 'email' | 'sent' | 'verifying'
 
 export default function Login() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [step, setStep] = useState<LoginStep>('email')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -24,13 +26,18 @@ export default function Login() {
     if (error) throw new Error('Failed to send magic link')
   }
 
-  const handleSendMagicLink = async (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     setError('')
 
     const validationError = validateEmail()
     if (validationError) {
       setError(validationError)
+      return
+    }
+
+    if (showPassword && !password) {
+      setError('Please enter your password')
       return
     }
 
@@ -55,8 +62,16 @@ export default function Login() {
         )
       }
 
-      await sendMagicLink()
-      setStep('sent')
+      if (showPassword) {
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        })
+        if (signInErr) throw new Error(signInErr.message)
+      } else {
+        await sendMagicLink()
+        setStep('sent')
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message)
@@ -102,9 +117,11 @@ export default function Login() {
           {step === 'email' && (
             <div>
               <h2 className="text-2xl font-bold mb-2">Welcome back</h2>
-              <p className="text-gray-600 mb-6">Enter your email to receive a magic link</p>
+              <p className="text-gray-600 mb-6">
+                {showPassword ? 'Sign in with your password' : 'Enter your email to receive a magic link'}
+              </p>
 
-              <form onSubmit={handleSendMagicLink} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium mb-2">
                     Email address
@@ -124,8 +141,32 @@ export default function Login() {
                       disabled={isLoading}
                     />
                   </div>
-                  {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
                 </div>
+
+                {showPassword && (
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium mb-2">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        id="password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value)
+                          setError('')
+                        }}
+                        placeholder="Enter your password"
+                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {error && <p className="text-sm text-red-600">{error}</p>}
 
                 <button
                   type="submit"
@@ -135,15 +176,29 @@ export default function Login() {
                   {isLoading ? (
                     <>
                       <Loader className="w-5 h-5 animate-spin" />
-                      Sending magic link...
+                      {showPassword ? 'Signing in...' : 'Sending magic link...'}
                     </>
                   ) : (
                     <>
-                      Send magic link
+                      {showPassword ? 'Sign in' : 'Send magic link'}
                       <ArrowRight className="w-5 h-5" />
                     </>
                   )}
                 </button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPassword(!showPassword)
+                      setPassword('')
+                      setError('')
+                    }}
+                    className="text-sm text-gray-600 hover:underline"
+                  >
+                    {showPassword ? 'Use magic link instead' : 'Have a password? Sign in with password'}
+                  </button>
+                </div>
               </form>
             </div>
           )}
