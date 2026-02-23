@@ -60,7 +60,7 @@ export default function HomePage() {
       briefLevel: 'New Project Brief',
     })
     setSections(sections)
-    setCurrentStep('upload')
+    setCurrentStep('sections')
     setCurrentView('brief')
   }
 
@@ -143,6 +143,7 @@ export default function HomePage() {
                 approverComments={approverComments}
                 onMarkCommentActioned={handleMarkCommentActioned}
                 supportingDepartments={supportingDepartments}
+                onSupportingDepartmentsChange={setSupportingDepartments}
               />
             )}
           </>
