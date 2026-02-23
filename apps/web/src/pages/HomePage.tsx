@@ -60,7 +60,7 @@ export default function HomePage() {
       briefLevel: 'New Project Brief',
     })
     setSections(sections)
-    setCurrentStep('sections')
+    setCurrentStep('upload')
     setCurrentView('brief')
   }
 
