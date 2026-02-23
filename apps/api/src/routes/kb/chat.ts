@@ -184,65 +184,81 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Build Gemini file parts, reusing cached URIs where possible
       const sourceIds = conversation.source_ids as string[]
-      const fileParts: Array<{ fileData: { fileUri: string; mimeType: string } }> = []
       const GEMINI_TTL_MS = 47 * 60 * 60 * 1000 // 47 hours (Gemini files expire at 48h)
 
-      if (sourceIds.length > 0) {
-        // Fetch source metadata including cached Gemini URIs
-        const { data: sources } = await supabaseAdmin
-          .from('client_sources')
-          .select('id, file_path, file_type, gemini_file_uri, gemini_file_uploaded_at')
-          .in('id', sourceIds)
-          .is('deleted_at', null)
+      type SourceRow = { id: string; file_path: string; file_type: string | null; gemini_file_uri: string | null; gemini_file_uploaded_at: string | null }
 
-        if (sources && sources.length > 0) {
-          for (const source of sources) {
-            const mimeType = source.file_type || 'application/octet-stream'
+      async function buildFileParts(sources: SourceRow[], skipCache: boolean) {
+        const parts: Array<{ fileData: { fileUri: string; mimeType: string } }> = []
+        for (const source of sources) {
+          const mimeType = source.file_type || 'application/octet-stream'
 
-            // Check if cached URI is still valid
+          // Check if cached URI is still valid
+          if (!skipCache) {
             const isCacheValid =
               source.gemini_file_uri &&
               source.gemini_file_uploaded_at &&
               Date.now() - new Date(source.gemini_file_uploaded_at).getTime() < GEMINI_TTL_MS
 
             if (isCacheValid) {
-              fileParts.push({ fileData: { fileUri: source.gemini_file_uri!, mimeType } })
+              parts.push({ fileData: { fileUri: source.gemini_file_uri!, mimeType } })
               continue
             }
-
-            // Cache miss — download from Supabase and upload to Gemini
-            try {
-              const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
-                .from('client-documents')
-                .download(source.file_path)
-
-              if (downloadErr || !fileData) continue
-
-              const arrayBuffer = await fileData.arrayBuffer()
-              const geminiFile = await gemini.files.upload({
-                file: new Blob([arrayBuffer], { type: mimeType }),
-                config: { mimeType },
-              })
-
-              if (geminiFile.uri) {
-                fileParts.push({ fileData: { fileUri: geminiFile.uri, mimeType } })
-
-                // Update cache in DB (fire-and-forget)
-                supabaseAdmin
-                  .from('client_sources')
-                  .update({
-                    gemini_file_uri: geminiFile.uri,
-                    gemini_file_uploaded_at: new Date().toISOString(),
-                  })
-                  .eq('id', source.id)
-                  .then(({ error }) => {
-                    if (error) fastify.log.warn({ error, sourceId: source.id }, 'Failed to cache Gemini file URI')
-                  })
-              }
-            } catch (err) {
-              fastify.log.warn({ err, sourceId: source.id }, 'Failed to upload source to Gemini')
-            }
           }
+
+          // Cache miss or forced refresh — download from Supabase and upload to Gemini
+          try {
+            const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
+              .from('client-documents')
+              .download(source.file_path)
+
+            if (downloadErr || !fileData) continue
+
+            const arrayBuffer = await fileData.arrayBuffer()
+            const geminiFile = await gemini.files.upload({
+              file: new Blob([arrayBuffer], { type: mimeType }),
+              config: { mimeType },
+            })
+
+            if (geminiFile.uri) {
+              parts.push({ fileData: { fileUri: geminiFile.uri, mimeType } })
+
+              // Update cache in DB and local row
+              source.gemini_file_uri = geminiFile.uri
+              source.gemini_file_uploaded_at = new Date().toISOString()
+              supabaseAdmin
+                .from('client_sources')
+                .update({
+                  gemini_file_uri: geminiFile.uri,
+                  gemini_file_uploaded_at: source.gemini_file_uploaded_at,
+                })
+                .eq('id', source.id)
+                .then(({ error }) => {
+                  if (error) fastify.log.warn({ error, sourceId: source.id }, 'Failed to cache Gemini file URI')
+                })
+            }
+          } catch (err) {
+            fastify.log.warn({ err, sourceId: source.id }, 'Failed to upload source to Gemini')
+          }
+        }
+        return parts
+      }
+
+      let fileParts: Array<{ fileData: { fileUri: string; mimeType: string } }> = []
+      let sources: SourceRow[] = []
+      let usedCache = false
+
+      if (sourceIds.length > 0) {
+        const { data } = await supabaseAdmin
+          .from('client_sources')
+          .select('id, file_path, file_type, gemini_file_uri, gemini_file_uploaded_at')
+          .in('id', sourceIds)
+          .is('deleted_at', null)
+
+        sources = (data ?? []) as SourceRow[]
+        if (sources.length > 0) {
+          usedCache = sources.some((s) => s.gemini_file_uri != null)
+          fileParts = await buildFileParts(sources, false)
         }
       }
 
@@ -252,24 +268,36 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         parts: [{ text: msg.content }],
       }))
 
-      // Call Gemini
+      // Call Gemini — retry once with fresh uploads if cached URIs cause a failure
       const systemInstruction = await getPrompt(
         'kb-chat-system',
         'You are a knowledge base assistant. Answer questions based on the provided documents. If you cannot find the answer in the documents, say so clearly.',
       )
-      const response = await gemini.models.generateContent({
-        model: 'gemini-2.0-flash',
-        config: {
-          systemInstruction,
-        },
-        contents: [
-          ...historyMessages,
-          {
-            role: 'user',
-            parts: [...fileParts, { text: content }],
-          },
-        ],
-      })
+
+      let response
+      try {
+        response = await gemini.models.generateContent({
+          model: 'gemini-2.0-flash',
+          config: { systemInstruction },
+          contents: [
+            ...historyMessages,
+            { role: 'user', parts: [...fileParts, { text: content }] },
+          ],
+        })
+      } catch (err) {
+        if (!usedCache) throw err
+        // Cached URIs may be stale — re-upload all files and retry
+        fastify.log.warn({ err }, 'Gemini generateContent failed with cached URIs, retrying with fresh uploads')
+        fileParts = await buildFileParts(sources, true)
+        response = await gemini.models.generateContent({
+          model: 'gemini-2.0-flash',
+          config: { systemInstruction },
+          contents: [
+            ...historyMessages,
+            { role: 'user', parts: [...fileParts, { text: content }] },
+          ],
+        })
+      }
 
       const assistantContent = response.text ?? 'I was unable to generate a response.'
 
