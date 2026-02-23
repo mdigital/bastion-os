@@ -150,6 +150,8 @@ export interface ClientSource {
   file_type: string | null
   file_size: number | null
   uploaded_by: string | null
+  gemini_file_uri: string | null
+  gemini_file_uploaded_at: string | null
   created_at: string
   deleted_at: string | null
 }

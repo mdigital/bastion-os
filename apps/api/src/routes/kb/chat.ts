@@ -182,41 +182,65 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
 
-      // Download source files from Supabase Storage and upload to Gemini
+      // Build Gemini file parts, reusing cached URIs where possible
       const sourceIds = conversation.source_ids as string[]
       const fileParts: Array<{ fileData: { fileUri: string; mimeType: string } }> = []
+      const GEMINI_TTL_MS = 47 * 60 * 60 * 1000 // 47 hours (Gemini files expire at 48h)
 
       if (sourceIds.length > 0) {
-        // Fetch source metadata
+        // Fetch source metadata including cached Gemini URIs
         const { data: sources } = await supabaseAdmin
           .from('client_sources')
-          .select('file_path, file_type')
+          .select('id, file_path, file_type, gemini_file_uri, gemini_file_uploaded_at')
           .in('id', sourceIds)
           .is('deleted_at', null)
 
         if (sources && sources.length > 0) {
           for (const source of sources) {
-            // Download file from Supabase Storage
-            const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
-              .from('client-documents')
-              .download(source.file_path)
+            const mimeType = source.file_type || 'application/octet-stream'
 
-            if (downloadErr || !fileData) continue
+            // Check if cached URI is still valid
+            const isCacheValid =
+              source.gemini_file_uri &&
+              source.gemini_file_uploaded_at &&
+              Date.now() - new Date(source.gemini_file_uploaded_at).getTime() < GEMINI_TTL_MS
 
-            // Upload to Gemini Files API
-            const arrayBuffer = await fileData.arrayBuffer()
-            const geminiFile = await gemini.files.upload({
-              file: new Blob([arrayBuffer], { type: source.file_type || 'application/octet-stream' }),
-              config: { mimeType: source.file_type || 'application/octet-stream' },
-            })
+            if (isCacheValid) {
+              fileParts.push({ fileData: { fileUri: source.gemini_file_uri!, mimeType } })
+              continue
+            }
 
-            if (geminiFile.uri) {
-              fileParts.push({
-                fileData: {
-                  fileUri: geminiFile.uri,
-                  mimeType: source.file_type || 'application/octet-stream',
-                },
+            // Cache miss — download from Supabase and upload to Gemini
+            try {
+              const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
+                .from('client-documents')
+                .download(source.file_path)
+
+              if (downloadErr || !fileData) continue
+
+              const arrayBuffer = await fileData.arrayBuffer()
+              const geminiFile = await gemini.files.upload({
+                file: new Blob([arrayBuffer], { type: mimeType }),
+                config: { mimeType },
               })
+
+              if (geminiFile.uri) {
+                fileParts.push({ fileData: { fileUri: geminiFile.uri, mimeType } })
+
+                // Update cache in DB (fire-and-forget)
+                supabaseAdmin
+                  .from('client_sources')
+                  .update({
+                    gemini_file_uri: geminiFile.uri,
+                    gemini_file_uploaded_at: new Date().toISOString(),
+                  })
+                  .eq('id', source.id)
+                  .then(({ error }) => {
+                    if (error) fastify.log.warn({ error, sourceId: source.id }, 'Failed to cache Gemini file URI')
+                  })
+              }
+            } catch (err) {
+              fastify.log.warn({ err, sourceId: source.id }, 'Failed to upload source to Gemini')
             }
           }
         }
