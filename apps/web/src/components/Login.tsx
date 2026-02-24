@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Mail, Lock, ArrowRight, Check, Loader } from 'lucide-react'
 
@@ -165,6 +165,11 @@ export default function Login() {
                         className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                         disabled={isLoading}
                       />
+                    </div>
+                    <div className="mt-1 text-right">
+                      <Link to="/forgot-password" className="text-sm text-gray-600 hover:underline">
+                        Forgot password?
+                      </Link>
                     </div>
                   </div>
                 )}
