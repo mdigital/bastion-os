@@ -186,7 +186,7 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
       const sourceIds = conversation.source_ids as string[]
       const GEMINI_TTL_MS = 47 * 60 * 60 * 1000 // 47 hours (Gemini files expire at 48h)
 
-      type SourceRow = { id: string; file_path: string; file_type: string | null; gemini_file_uri: string | null; gemini_file_uploaded_at: string | null }
+      type SourceRow = { id: string; file_name: string | null; file_path: string; file_type: string | null; gemini_file_uri: string | null; gemini_file_uploaded_at: string | null }
 
       async function buildFileParts(sources: SourceRow[], skipCache: boolean) {
         const parts: Array<{ fileData: { fileUri: string; mimeType: string } }> = []
@@ -251,7 +251,7 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
       if (sourceIds.length > 0) {
         const { data } = await supabaseAdmin
           .from('client_sources')
-          .select('id, file_path, file_type, gemini_file_uri, gemini_file_uploaded_at')
+          .select('id, file_name, file_path, file_type, gemini_file_uri, gemini_file_uploaded_at')
           .in('id', sourceIds)
           .is('deleted_at', null)
 
@@ -259,7 +259,22 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         if (sources.length > 0) {
           usedCache = sources.some((s) => s.gemini_file_uri != null)
           fileParts = await buildFileParts(sources, false)
+          const sourceNames = sources.map((s) => s.file_name || s.file_path.split('/').pop() || 'unknown')
+          fastify.log.info({ fileCount: fileParts.length, sourceNames }, 'KB chat: built file parts for Gemini')
         }
+      }
+
+      // Build a dedicated file context message so Gemini treats files as grounding context
+      function buildFileMessage(parts: typeof fileParts) {
+        if (parts.length === 0) return []
+        const names = sources.map((s) => s.file_name || s.file_path.split('/').pop() || 'unknown')
+        return [{
+          role: 'user' as const,
+          parts: [
+            { text: `Reference documents:\n${names.map((n, i) => `${i + 1}. ${n}`).join('\n')}` },
+            ...parts,
+          ],
+        }]
       }
 
       // Build conversation history for Gemini
@@ -280,8 +295,9 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
           model: 'gemini-2.0-flash',
           config: { systemInstruction },
           contents: [
+            ...buildFileMessage(fileParts),
             ...historyMessages,
-            { role: 'user', parts: [...fileParts, { text: content }] },
+            { role: 'user', parts: [{ text: content }] },
           ],
         })
       } catch (err) {
@@ -293,8 +309,9 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
           model: 'gemini-2.0-flash',
           config: { systemInstruction },
           contents: [
+            ...buildFileMessage(fileParts),
             ...historyMessages,
-            { role: 'user', parts: [...fileParts, { text: content }] },
+            { role: 'user', parts: [{ text: content }] },
           ],
         })
       }

@@ -32,3 +32,6 @@ supabase/.temp/
 
 # Turbo
 .turbo/
+
+# Sample data
+sample-data/

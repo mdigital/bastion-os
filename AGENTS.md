@@ -4,6 +4,8 @@
 
 bastion-os is an AI-powered brief expansion tool. Users upload creative briefs (with optional file attachments), and the system uses Google Gemini to expand them into comprehensive project briefs.
 
+All new features are to be created in branches, these will be merged once signed off by the lead developer. Create a PR for each.
+
 ## Tech Stack
 
 - **Frontend**: React 19 + Vite 7 + TypeScript (hosted on Netlify)
