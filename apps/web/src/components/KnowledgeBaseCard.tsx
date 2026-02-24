@@ -8,6 +8,7 @@ interface Client {
   id: string
   name: string
   industry: string | null
+  source_count: number
 }
 
 // TODO - probably coming from DB
@@ -62,7 +63,7 @@ export default function KnowledgeBaseCard() {
               <KnowledgeBaseClient
                 key={client.name}
                 name={client.name}
-                sources={12}
+                sources={client.source_count}
                 dotColorClass={col}
               />
             )
@@ -82,7 +83,7 @@ export default function KnowledgeBaseCard() {
 
           <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600">
-              {clients.length} clients • [TODO: from DB] total sources
+              {clients.length} clients • {clients.reduce((sum, c) => sum + c.source_count, 0)} total sources
             </p>
           </div>
         </>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { X, Upload, FileText, Check, Loader } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
@@ -14,34 +14,23 @@ interface UploadedFile {
   id: string
   name: string
   size: string
+  file: File
 }
-
-// Mock organisations data - in production this would come from a database
-const organisations = [
-  { id: '1', name: 'Acme Corporation' },
-  { id: '2', name: 'TechStart Inc' },
-  { id: '3', name: 'GreenLife Foods' },
-  { id: '4', name: 'Volvo' },
-  { id: '5', name: 'Geely' },
-  { id: '6', name: 'Tower Insurance' },
-  { id: '7', name: 'Healthy Paws Veterinary' },
-  { id: '8', name: 'Urban Eats' },
-  { id: '9', name: 'FitTech Solutions' },
-]
 
 export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddClientModalProps) {
   const [step, setStep] = useState<Step>('upload')
-  const [selectedOrganisation, setSelectedOrganisation] = useState('')
+  const [clientName, setClientName] = useState('')
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!isOpen) return null
 
   const handleClose = () => {
     setStep('upload')
-    setSelectedOrganisation('')
+    setClientName('')
     setUploadedFiles([])
     setSubmitError(null)
     onClose()
@@ -74,9 +63,13 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
       id: Math.random().toString(36),
       name: file.name,
       size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+      file,
     }))
 
     setUploadedFiles([...uploadedFiles, ...newFiles])
+
+    // Reset the file input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const removeFile = (id: string) => {
@@ -84,14 +77,9 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
   }
 
   const handleProcessDocuments = async () => {
-    if (!selectedOrganisation) {
-      alert('Please select an organisation')
-      return
-    }
-
-    const organisationName = organisations.find((org) => org.id === selectedOrganisation)?.name
-    if (!organisationName) {
-      alert('Please select a valid organisation')
+    const trimmedName = clientName.trim()
+    if (!trimmedName) {
+      alert('Please enter a client name')
       return
     }
 
@@ -100,11 +88,21 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
     setStep('processing')
 
     try {
-      await apiFetch('/api/admin/clients', {
+      const created = await apiFetch<{ id: string }>('/api/admin/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: organisationName }),
+        body: JSON.stringify({ name: trimmedName }),
       })
+
+      // Upload files as KB sources
+      for (const entry of uploadedFiles) {
+        const formData = new FormData()
+        formData.append('file', entry.file)
+        await apiFetch(`/api/kb/clients/${created.id}/sources`, {
+          method: 'POST',
+          body: formData,
+        })
+      }
 
       await onClientAdded()
       setStep('complete')
@@ -145,19 +143,14 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
             <div className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Organisation *</label>
-                  <select
-                    value={selectedOrganisation}
-                    onChange={(e) => setSelectedOrganisation(e.target.value)}
+                  <label className="block text-sm font-medium mb-2">Client Name *</label>
+                  <input
+                    type="text"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    placeholder="Enter client name"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                  >
-                    <option value="">Select an organisation</option>
-                    {organisations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
 
@@ -188,6 +181,7 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
                     </p>
                   </div>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     multiple
                     onChange={handleFileInput}
@@ -242,8 +236,7 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
               </div>
               <h3 className="font-bold text-xl mb-2">Processing Documents</h3>
               <p className="text-gray-600 text-center mb-4">
-                Creating knowledge base for{' '}
-                {organisations.find((org) => org.id === selectedOrganisation)?.name}...
+                Creating knowledge base for {clientName}...
               </p>
               <p className="text-sm text-gray-500">
                 Processing {uploadedFiles.length} PDF{' '}
@@ -260,8 +253,7 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
               </div>
               <h3 className="font-bold text-xl mb-2">Knowledge Base Created!</h3>
               <p className="text-gray-600 text-center">
-                {organisations.find((org) => org.id === selectedOrganisation)?.name} has been added
-                to your knowledge base with {uploadedFiles.length}{' '}
+                {clientName} has been added to your knowledge base with {uploadedFiles.length}{' '}
                 {uploadedFiles.length === 1 ? 'document' : 'documents'}.
               </p>
             </div>
@@ -280,7 +272,7 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
 
             <button
               onClick={handleProcessDocuments}
-              disabled={isProcessing || uploadedFiles.length === 0 || !selectedOrganisation}
+              disabled={isProcessing || !clientName.trim()}
               className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               Create Knowledge Base

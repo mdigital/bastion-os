@@ -3,27 +3,24 @@ import Layout from '../components/Layout'
 import { apiFetch } from '../lib/api'
 import { KnowledgeBaseClients } from '../components/KnowledgeBaseClients'
 import { useAuth } from '../contexts/AuthContext'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 interface Client {
   id: string
   name: string
   industry: string | null
+  source_count: number
 }
 
 export default function ClientsPage() {
   const { userRole } = useAuth()
-  const [, setSelectedClient] = useState<string | null>(null)
-  const [, setClientName] = useState<string>('')
+  const navigate = useNavigate()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const handleSelectClient = (clientId: string) => {
-    const client = clients.find((c) => c.id === clientId)
-
-    setSelectedClient(clientId)
-    setClientName(client?.name ?? 'Client')
+    navigate(`/clients/${clientId}`)
   }
 
   const fetchClients = () => {

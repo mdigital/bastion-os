@@ -6,6 +6,7 @@ interface Client {
   id: string
   name: string
   industry: string | null
+  source_count: number
 }
 
 interface KnowledgeBaseClientsProps {
@@ -105,6 +106,9 @@ export function KnowledgeBaseClients({
                   </p>
                 </div>
               </div>
+              <p className="text-xs text-gray-500">
+                {client.source_count} {client.source_count === 1 ? 'source' : 'sources'}
+              </p>
             </div>
           ))}
         </div>
