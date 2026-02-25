@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../../lib/supabase.js'
 import { gemini } from '../../lib/gemini.js'
 import { getPrompt } from '../../lib/prompts.js'
+import { prepareFiles, type SourceRow } from '../../lib/gemini-files.js'
 
 const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/kb/clients/:clientId/conversations
@@ -125,6 +126,96 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
     },
   )
 
+  // POST /api/kb/clients/:clientId/conversations/:conversationId/prepare-files
+  // SSE endpoint — streams progress events as files are verified/re-uploaded
+  fastify.post<{ Params: { clientId: string; conversationId: string } }>(
+    '/api/kb/clients/:clientId/conversations/:conversationId/prepare-files',
+    { config: { requiredRoles: ['admin', 'manager', 'user'] } },
+    async (request, reply) => {
+      if (!request.organisationId) {
+        return reply.notFound('User has no organisation')
+      }
+
+      const { clientId, conversationId } = request.params
+
+      // Verify client belongs to user's org
+      const { data: client, error: clientErr } = await supabaseAdmin
+        .from('clients')
+        .select('id')
+        .eq('id', clientId)
+        .eq('organisation_id', request.organisationId)
+        .single()
+
+      if (clientErr || !client) return reply.notFound('Client not found')
+
+      // Fetch conversation
+      const { data: conversation, error: convErr } = await supabaseAdmin
+        .from('kb_conversations')
+        .select('*')
+        .eq('id', conversationId)
+        .eq('client_id', clientId)
+        .single()
+
+      if (convErr || !conversation) return reply.notFound('Conversation not found')
+
+      const sourceIds = conversation.source_ids as string[]
+
+      // Set SSE headers
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+
+      function writeSSE(event: string, data: unknown) {
+        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+      }
+
+      if (sourceIds.length === 0) {
+        writeSSE('ready', { fileCount: 0, refreshed: 0 })
+        reply.raw.end()
+        return reply
+      }
+
+      const { data: sources } = await supabaseAdmin
+        .from('client_sources')
+        .select('id, file_name, file_path, file_type, gemini_file_uri, gemini_file_name, gemini_file_uploaded_at')
+        .in('id', sourceIds)
+        .is('deleted_at', null)
+
+      const sourceRows = (sources ?? []) as SourceRow[]
+
+      if (sourceRows.length === 0) {
+        writeSSE('ready', { fileCount: 0, refreshed: 0 })
+        reply.raw.end()
+        return reply
+      }
+
+      let refreshed = 0
+
+      try {
+        const parts = await prepareFiles(
+          sourceRows,
+          supabaseAdmin,
+          gemini,
+          fastify.log,
+          (progress) => {
+            if (progress.status === 'uploading') refreshed++
+            writeSSE('progress', progress)
+          },
+        )
+
+        writeSSE('ready', { fileCount: parts.length, refreshed })
+      } catch (err) {
+        fastify.log.error({ err }, 'prepare-files failed')
+        writeSSE('error', { message: 'Failed to prepare files' })
+      }
+
+      reply.raw.end()
+      return reply
+    },
+  )
+
   // POST /api/kb/clients/:clientId/conversations/:conversationId/messages
   fastify.post<{
     Params: { clientId: string; conversationId: string }
@@ -182,96 +273,43 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
 
-      // Build Gemini file parts, reusing cached URIs where possible
+      // Build file parts from cached URIs (prepare-files should have been called first)
       const sourceIds = conversation.source_ids as string[]
-      const GEMINI_TTL_MS = 47 * 60 * 60 * 1000 // 47 hours (Gemini files expire at 48h)
-
-      type SourceRow = { id: string; file_name: string | null; file_path: string; file_type: string | null; gemini_file_uri: string | null; gemini_file_uploaded_at: string | null }
-
-      async function buildFileParts(sources: SourceRow[], skipCache: boolean) {
-        const parts: Array<{ fileData: { fileUri: string; mimeType: string } }> = []
-        for (const source of sources) {
-          const mimeType = source.file_type || 'application/octet-stream'
-
-          // Check if cached URI is still valid
-          if (!skipCache) {
-            const isCacheValid =
-              source.gemini_file_uri &&
-              source.gemini_file_uploaded_at &&
-              Date.now() - new Date(source.gemini_file_uploaded_at).getTime() < GEMINI_TTL_MS
-
-            if (isCacheValid) {
-              parts.push({ fileData: { fileUri: source.gemini_file_uri!, mimeType } })
-              continue
-            }
-          }
-
-          // Cache miss or forced refresh — download from Supabase and upload to Gemini
-          try {
-            const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
-              .from('client-documents')
-              .download(source.file_path)
-
-            if (downloadErr || !fileData) continue
-
-            const arrayBuffer = await fileData.arrayBuffer()
-            const geminiFile = await gemini.files.upload({
-              file: new Blob([arrayBuffer], { type: mimeType }),
-              config: { mimeType },
-            })
-
-            if (geminiFile.uri) {
-              parts.push({ fileData: { fileUri: geminiFile.uri, mimeType } })
-
-              // Update cache in DB and local row
-              source.gemini_file_uri = geminiFile.uri
-              source.gemini_file_uploaded_at = new Date().toISOString()
-              supabaseAdmin
-                .from('client_sources')
-                .update({
-                  gemini_file_uri: geminiFile.uri,
-                  gemini_file_uploaded_at: source.gemini_file_uploaded_at,
-                })
-                .eq('id', source.id)
-                .then(({ error }) => {
-                  if (error) fastify.log.warn({ error, sourceId: source.id }, 'Failed to cache Gemini file URI')
-                })
-            }
-          } catch (err) {
-            fastify.log.warn({ err, sourceId: source.id }, 'Failed to upload source to Gemini')
-          }
-        }
-        return parts
-      }
+      type CachedSource = { id: string; file_name: string | null; file_path: string; file_type: string | null; gemini_file_uri: string | null }
 
       let fileParts: Array<{ fileData: { fileUri: string; mimeType: string } }> = []
-      let sources: SourceRow[] = []
-      let usedCache = false
+      let sourceNames: string[] = []
 
       if (sourceIds.length > 0) {
         const { data } = await supabaseAdmin
           .from('client_sources')
-          .select('id, file_name, file_path, file_type, gemini_file_uri, gemini_file_uploaded_at')
+          .select('id, file_name, file_path, file_type, gemini_file_uri')
           .in('id', sourceIds)
           .is('deleted_at', null)
 
-        sources = (data ?? []) as SourceRow[]
-        if (sources.length > 0) {
-          usedCache = sources.some((s) => s.gemini_file_uri != null)
-          fileParts = await buildFileParts(sources, false)
-          const sourceNames = sources.map((s) => s.file_name || s.file_path.split('/').pop() || 'unknown')
-          fastify.log.info({ fileCount: fileParts.length, sourceNames }, 'KB chat: built file parts for Gemini')
-        }
+        const sources = (data ?? []) as CachedSource[]
+        sourceNames = sources.map((s) => s.file_name || s.file_path.split('/').pop() || 'unknown')
+
+        // Use only sources with cached URIs — no inline uploads
+        fileParts = sources
+          .filter((s) => s.gemini_file_uri)
+          .map((s) => ({
+            fileData: {
+              fileUri: s.gemini_file_uri!,
+              mimeType: s.file_type || 'application/octet-stream',
+            },
+          }))
+
+        fastify.log.info({ fileCount: fileParts.length, sourceNames }, 'KB chat: using cached file parts')
       }
 
       // Build a dedicated file context message so Gemini treats files as grounding context
       function buildFileMessage(parts: typeof fileParts) {
         if (parts.length === 0) return []
-        const names = sources.map((s) => s.file_name || s.file_path.split('/').pop() || 'unknown')
         return [{
           role: 'user' as const,
           parts: [
-            { text: `Reference documents:\n${names.map((n, i) => `${i + 1}. ${n}`).join('\n')}` },
+            { text: `Reference documents:\n${sourceNames.map((n, i) => `${i + 1}. ${n}`).join('\n')}` },
             ...parts,
           ],
         }]
@@ -283,7 +321,6 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         parts: [{ text: msg.content }],
       }))
 
-      // Call Gemini — retry once with fresh uploads if cached URIs cause a failure
       const systemInstruction = await getPrompt(
         'kb-chat-system',
         'You are a knowledge base assistant. Answer questions based on the provided documents. If you cannot find the answer in the documents, say so clearly.',
@@ -301,18 +338,12 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
           ],
         })
       } catch (err) {
-        if (!usedCache) throw err
-        // Cached URIs may be stale — re-upload all files and retry
-        fastify.log.warn({ err }, 'Gemini generateContent failed with cached URIs, retrying with fresh uploads')
-        fileParts = await buildFileParts(sources, true)
-        response = await gemini.models.generateContent({
-          model: 'gemini-2.0-flash',
-          config: { systemInstruction },
-          contents: [
-            ...buildFileMessage(fileParts),
-            ...historyMessages,
-            { role: 'user', parts: [{ text: content }] },
-          ],
+        // If Gemini rejects stale URIs, tell user to retry (files need re-preparation)
+        fastify.log.warn({ err }, 'Gemini generateContent failed — files may need re-preparation')
+        return reply.code(422).send({
+          statusCode: 422,
+          error: 'Unprocessable Entity',
+          message: 'Document files may have expired. Please reopen the conversation to refresh them.',
         })
       }
 

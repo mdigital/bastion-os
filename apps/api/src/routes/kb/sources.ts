@@ -75,8 +75,9 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (uploadErr) return reply.internalServerError(uploadErr.message)
 
-      // Upload to Gemini Files API (non-fatal — will be retried on first chat use)
+      // Upload to Gemini Files API (non-fatal — will be retried via prepare-files)
       let geminiFileUri: string | null = null
+      let geminiFileName: string | null = null
       let geminiFileUploadedAt: string | null = null
       try {
         const geminiFile = await gemini.files.upload({
@@ -85,10 +86,11 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
         })
         if (geminiFile.uri) {
           geminiFileUri = geminiFile.uri
+          geminiFileName = geminiFile.name ?? null
           geminiFileUploadedAt = new Date().toISOString()
         }
       } catch (err) {
-        fastify.log.warn({ err }, 'Gemini file upload failed at source creation — will retry on first chat use')
+        fastify.log.warn({ err }, 'Gemini file upload failed at source creation — will retry via prepare-files')
       }
 
       // Insert metadata row
@@ -102,6 +104,7 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
           file_size: buffer.length,
           uploaded_by: request.userId,
           gemini_file_uri: geminiFileUri,
+          gemini_file_name: geminiFileName,
           gemini_file_uploaded_at: geminiFileUploadedAt,
         })
         .select()
@@ -133,6 +136,15 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (clientErr || !client) return reply.notFound('Client not found')
 
+      // Fetch source to get gemini_file_name before soft-deleting
+      const { data: source } = await supabaseAdmin
+        .from('client_sources')
+        .select('gemini_file_name')
+        .eq('id', sourceId)
+        .eq('client_id', clientId)
+        .is('deleted_at', null)
+        .single()
+
       // Soft-delete by setting deleted_at
       const { data, error } = await supabaseAdmin
         .from('client_sources')
@@ -145,6 +157,16 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (error) return reply.internalServerError(error.message)
       if (!data) return reply.notFound('Source not found')
+
+      // Clean up Gemini file (non-fatal)
+      if (source?.gemini_file_name) {
+        try {
+          await gemini.files.delete({ name: source.gemini_file_name })
+        } catch (err) {
+          fastify.log.warn({ err, sourceId }, 'Failed to delete Gemini file — may already be expired')
+        }
+      }
+
       return reply.code(204).send()
     },
   )

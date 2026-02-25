@@ -28,7 +28,21 @@ const sbMock = vi.hoisted(() => {
   }
 })
 
+const geminiMock = vi.hoisted(() => {
+  const upload = vi.fn().mockResolvedValue({ uri: 'https://genai.example.com/files/abc', name: 'files/abc', mimeType: 'application/pdf' })
+  const get = vi.fn().mockResolvedValue({ state: 'ACTIVE' })
+  const del = vi.fn().mockResolvedValue({})
+  return {
+    models: { generateContent: vi.fn() },
+    files: { upload, get, delete: del },
+    _upload: upload,
+    _get: get,
+    _delete: del,
+  }
+})
+
 vi.mock('../lib/supabase.js', () => ({ supabaseAdmin: sbMock }))
+vi.mock('../lib/gemini.js', () => ({ gemini: geminiMock }))
 
 import { buildTestApp } from './helpers.js'
 import multipart from '@fastify/multipart'
@@ -52,6 +66,10 @@ function resetMock() {
   sbMock._upload.mockClear()
   sbMock._upload.mockResolvedValue({ error: null })
   sbMock.storage.from.mockClear()
+  geminiMock._upload.mockClear()
+  geminiMock._upload.mockResolvedValue({ uri: 'https://genai.example.com/files/abc', name: 'files/abc', mimeType: 'application/pdf' })
+  geminiMock._delete.mockClear()
+  geminiMock._delete.mockResolvedValue({})
 }
 
 beforeEach(() => resetMock())
@@ -167,6 +185,9 @@ describe('DELETE /api/kb/clients/:clientId/sources/:sourceId', () => {
   it('soft-deletes a source and returns 204', async () => {
     sbMock.chain._results = [
       { data: { id: 'c1' }, error: null },
+      // fetch source to get gemini_file_name
+      { data: { gemini_file_name: 'files/abc' }, error: null },
+      // soft-delete
       { data: { id: 's1', deleted_at: '2025-01-01' }, error: null },
     ]
 
@@ -182,6 +203,9 @@ describe('DELETE /api/kb/clients/:clientId/sources/:sourceId', () => {
   it('returns 404 if source not found', async () => {
     sbMock.chain._results = [
       { data: { id: 'c1' }, error: null },
+      // fetch source (not found)
+      { data: null, error: null },
+      // soft-delete (not found)
       { data: null, error: null },
     ]
 
