@@ -5,7 +5,9 @@ import { AppStateProvider } from './contexts/AppStateContext.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 import ClientKBPage from './pages/ClientKBPage.tsx'
 import ClientsPage from './pages/ClientsPage.tsx'
+import ForgotPasswordPage from './pages/ForgotPasswordPage.tsx'
 import HomePage from './pages/HomePage.tsx'
+import ResetPasswordPage from './pages/ResetPasswordPage.tsx'
 import AdminPage from './pages/AdminPage.tsx'
 import PromptsPage from './pages/PromptsPage.tsx'
 import PracticesPage from './pages/PracticesPage.tsx'
@@ -19,6 +21,8 @@ function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route
               path="/"
               element={

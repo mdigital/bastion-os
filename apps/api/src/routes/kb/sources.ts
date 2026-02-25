@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../../lib/supabase.js'
+import { gemini } from '../../lib/gemini.js'
 
 const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/kb/clients/:clientId/sources
@@ -74,6 +75,22 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (uploadErr) return reply.internalServerError(uploadErr.message)
 
+      // Upload to Gemini Files API (non-fatal — will be retried on first chat use)
+      let geminiFileUri: string | null = null
+      let geminiFileUploadedAt: string | null = null
+      try {
+        const geminiFile = await gemini.files.upload({
+          file: new Blob([buffer], { type: file.mimetype || 'application/octet-stream' }),
+          config: { mimeType: file.mimetype || 'application/octet-stream' },
+        })
+        if (geminiFile.uri) {
+          geminiFileUri = geminiFile.uri
+          geminiFileUploadedAt = new Date().toISOString()
+        }
+      } catch (err) {
+        fastify.log.warn({ err }, 'Gemini file upload failed at source creation — will retry on first chat use')
+      }
+
       // Insert metadata row
       const { data, error } = await supabaseAdmin
         .from('client_sources')
@@ -84,6 +101,8 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
           file_type: file.mimetype,
           file_size: buffer.length,
           uploaded_by: request.userId,
+          gemini_file_uri: geminiFileUri,
+          gemini_file_uploaded_at: geminiFileUploadedAt,
         })
         .select()
         .single()

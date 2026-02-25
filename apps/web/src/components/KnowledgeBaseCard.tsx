@@ -1,12 +1,32 @@
 import { Database, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiFetch } from '../lib/api'
 import KnowledgeBaseClient from './KnowledgeBaseClient'
-import { knowledgeBaseClients as clients } from '../data/mockData'
+
+interface Client {
+  id: string
+  name: string
+  industry: string | null
+  source_count: number
+}
+
+// TODO - probably coming from DB
+const clientColor = ['bg-red-500', 'bg-orange-500', 'bg-purple-500', 'bg-green-500']
 
 export default function KnowledgeBaseCard() {
+  const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
+  const [, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const visibleClients = clients.slice(0, 4)
-  const totalSources = clients.reduce((sum, client) => sum + client.sources, 0)
+
+  useEffect(() => {
+    apiFetch<Client[]>('/api/admin/clients')
+      .then(setClients)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [])
 
   return (
     <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all group flex-1 flex flex-col">
@@ -32,29 +52,42 @@ export default function KnowledgeBaseCard() {
       </div>
 
       <div className="space-y-2 mb-4">
-        {visibleClients.map((client) => (
-          <KnowledgeBaseClient
-            key={client.name}
-            name={client.name}
-            sources={client.sources}
-            dotColorClass={client.dotColorClass}
-          />
-        ))}
+        {loading ? (
+          <p className="text-sm text-gray-600">Loading clients...</p>
+        ) : visibleClients.length === 0 ? (
+          <p className="text-sm text-gray-600">No clients found.</p>
+        ) : (
+          visibleClients.map((client, i) => {
+            const col = clientColor[i % clientColor.length] ?? clientColor[0]
+            return (
+              <KnowledgeBaseClient
+                key={client.name}
+                name={client.name}
+                sources={client.source_count}
+                dotColorClass={col}
+              />
+            )
+          })
+        )}
       </div>
 
-      <button
-        type="button"
-        className="w-full py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium"
-        onClick={() => navigate('/')}
-      >
-        View all clients
-      </button>
+      {visibleClients.length > 0 && (
+        <>
+          <button
+            type="button"
+            className="w-full py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium"
+            onClick={() => navigate('/')}
+          >
+            View all clients
+          </button>
 
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <p className="text-sm text-gray-600">
-          {clients.length} clients • {totalSources} total sources
-        </p>
-      </div>
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              {clients.length} clients • {clients.reduce((sum, c) => sum + c.source_count, 0)} total sources
+            </p>
+          </div>
+        </>
+      )}
     </div>
   )
 }

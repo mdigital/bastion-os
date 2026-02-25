@@ -13,12 +13,19 @@ const clientRoutes: FastifyPluginAsync = async (fastify) => {
 
       const { data, error } = await supabaseAdmin
         .from('clients')
-        .select('*')
+        .select('*, source_count:client_sources(count)')
         .eq('organisation_id', request.organisationId)
+        .is('client_sources.deleted_at', null)
         .order('name', { ascending: true })
 
       if (error) return reply.internalServerError(error.message)
-      return data
+
+      // Flatten the count: [{count: N}] → N
+      const clients = (data ?? []).map((c) => ({
+        ...c,
+        source_count: (c.source_count as unknown as { count: number }[])?.[0]?.count ?? 0,
+      }))
+      return clients
     },
   )
 

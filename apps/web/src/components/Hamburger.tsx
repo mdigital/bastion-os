@@ -52,7 +52,11 @@ export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
             {/* Menu content */}
             <div className="flex-1 p-6 flex flex-col gap-2">
               <button
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all bg-yellow-400 text-black font-medium hover:bg-yellow-500"
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  currentView === 'home'
+                    ? 'bg-yellow-400 text-black font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
                 onClick={() => {
                   setIsOpen(false)
                   navigate('/home')
@@ -76,6 +80,7 @@ export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
                     key={item.id}
                     onClick={() => {
                       setIsOpen(false)
+                      navigate('/')
                       setCurrentView(item.view)
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${

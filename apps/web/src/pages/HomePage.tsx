@@ -45,7 +45,7 @@ export default function HomePage() {
     { id: 'activation', name: 'Activation (Digital)' },
   ]
   const [selectedPracticeId, setSelectedPracticeId] = useState('advisory')
-  const [supportingDepartments] = useState(['Social', 'Creative', 'PR'])
+  const [supportingDepartments, setSupportingDepartments] = useState(['Social', 'Creative', 'PR'])
   const [showComparison] = useState(false)
   const [approverComments, setApproverComments] = useState<{
     [key: number]: { comment: string; approverName: string; actioned: boolean }
@@ -158,6 +158,7 @@ export default function HomePage() {
                 approverComments={approverComments}
                 onMarkCommentActioned={handleMarkCommentActioned}
                 supportingDepartments={supportingDepartments}
+                onSupportingDepartmentsChange={setSupportingDepartments}
               />
             )}
           </>
