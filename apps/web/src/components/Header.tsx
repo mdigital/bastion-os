@@ -40,7 +40,7 @@ export default function Header() {
             navigate('/home')
           }}
         >
-          Bastion IO
+          Bastion OS
         </button>
 
         <div className="flex items-center gap-2 relative">
