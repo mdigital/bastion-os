@@ -3,9 +3,10 @@ import { useState } from 'react'
 
 interface UploadStepProps {
   onUpload: (file: File) => void
+  isUploading?: boolean
 }
 
-export default function UploadStep({ onUpload }: UploadStepProps) {
+export default function UploadStep({ onUpload, isUploading }: UploadStepProps) {
   const [pastedText, setPastedText] = useState('')
   const [uploadMethod, setUploadMethod] = useState<'file' | 'text'>('file')
 
@@ -47,6 +48,18 @@ export default function UploadStep({ onUpload }: UploadStepProps) {
       const file = new File([blob], 'pasted-brief.txt', { type: 'text/plain' })
       onUpload(file)
     }
+  }
+
+  if (isUploading) {
+    return (
+      <div className="max-w-2xl mx-auto px-8 py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-6" />
+          <h2 className="mb-4">Uploading brief...</h2>
+          <p className="text-gray-700">Creating your brief and uploading the file</p>
+        </div>
+      </div>
+    )
   }
 
   return (

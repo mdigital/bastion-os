@@ -12,18 +12,9 @@ export const defaultSections: SectionData[] = [
       'Previous campaign results',
     ],
     enhancements: [
-      {
-        text: 'Sustainability market growing at 15% CAGR, expected to reach £150B by 2027 - window of opportunity before saturation',
-        source: 'Industry Analysis 2024',
-      },
-      {
-        text: 'Consumer trust in sustainability claims down 18% - authenticity is critical differentiator',
-        source: 'Trust & Brand Study',
-      },
-      {
-        text: 'Early movers in sustainability positioning capture 60% of category mindshare',
-        source: 'Competitive Intelligence',
-      },
+      'Sustainability market growing at 15% CAGR, expected to reach £150B by 2027 - window of opportunity before saturation',
+      'Consumer trust in sustainability claims down 18% - authenticity is critical differentiator',
+      'Early movers in sustainability positioning capture 60% of category mindshare',
     ],
     questions: [
       'What triggered this sustainability initiative now?',
@@ -42,18 +33,9 @@ export const defaultSections: SectionData[] = [
       'Category white space mapping',
     ],
     enhancements: [
-      {
-        text: 'Main competitor GreenCo facing backlash for greenwashing claims - opportunity for authentic alternative positioning',
-        source: 'Social Listening Report',
-      },
-      {
-        text: 'Category lacks a brand combining premium quality + authentic sustainability + accessible pricing',
-        source: 'Competitive Landscape Report',
-      },
-      {
-        text: 'Window of 6-9 months before market saturation based on competitor product pipeline analysis',
-        source: 'Market Intelligence',
-      },
+      'Main competitor GreenCo facing backlash for greenwashing claims - opportunity for authentic alternative positioning',
+      'Category lacks a brand combining premium quality + authentic sustainability + accessible pricing',
+      'Window of 6-9 months before market saturation based on competitor product pipeline analysis',
     ],
     questions: [
       'What makes your sustainability credentials more authentic than competitors?',
@@ -71,18 +53,9 @@ export const defaultSections: SectionData[] = [
       'Existing customer demographic data',
     ],
     enhancements: [
-      {
-        text: 'Target: 25-40 year olds, urban, HHI £75K+, 68% female skew in sustainable product category',
-        source: 'Audience Segmentation Study',
-      },
-      {
-        text: 'This audience over-indexes on Instagram (2.3x) and TikTok (3.1x) vs. general population',
-        source: 'Media Consumption Analysis',
-      },
-      {
-        text: '82% will switch brands over perceived inauthenticity - transparency is critical',
-        source: 'Consumer Insights Report',
-      },
+      'Target: 25-40 year olds, urban, HHI £75K+, 68% female skew in sustainable product category',
+      'This audience over-indexes on Instagram (2.3x) and TikTok (3.1x) vs. general population',
+      '82% will switch brands over perceived inauthenticity - transparency is critical',
     ],
     questions: [
       'Do you have existing customer research?',
@@ -102,18 +75,9 @@ export const defaultSections: SectionData[] = [
       'Baseline metrics for comparison',
     ],
     enhancements: [
-      {
-        text: '5% market share equates to approximately £2.3M revenue based on £46M category size',
-        source: 'Market Size Calculator',
-      },
-      {
-        text: 'Similar campaigns achieved 34% brand lift and 28% increase in purchase intent',
-        source: 'Campaign Performance Database',
-      },
-      {
-        text: 'Premium pricing sustainable products command 35% higher margins than standard offerings',
-        source: 'Category Economics Report',
-      },
+      '5% market share equates to approximately £2.3M revenue based on £46M category size',
+      'Similar campaigns achieved 34% brand lift and 28% increase in purchase intent',
+      'Premium pricing sustainable products command 35% higher margins than standard offerings',
     ],
     questions: [
       'What are the profit margin expectations by SKU?',
@@ -133,18 +97,9 @@ export const defaultSections: SectionData[] = [
       'File format specifications',
     ],
     enhancements: [
-      {
-        text: 'Recommend phased delivery over 16-week campaign period with content calendar aligned to product availability',
-        source: 'Project Timeline Standards',
-      },
-      {
-        text: 'Modular asset system for easy adaptation saves 30% on production costs',
-        source: 'Production Efficiency Guide',
-      },
-      {
-        text: 'AR-enabled packaging drives 4.2x higher engagement and 67% increase in share-of-voice',
-        source: 'Innovation Impact Study',
-      },
+      'Recommend phased delivery over 16-week campaign period with content calendar aligned to product availability',
+      'Modular asset system for easy adaptation saves 30% on production costs',
+      'AR-enabled packaging drives 4.2x higher engagement and 67% increase in share-of-voice',
     ],
     questions: [
       'What formats are required for each deliverable?',
@@ -164,18 +119,9 @@ export const defaultSections: SectionData[] = [
       'Contingency planning for delays',
     ],
     enhancements: [
-      {
-        text: 'Recommend social listening tools (Brandwatch or Sprout Social) for real-time sentiment tracking',
-        source: 'Analytics Toolkit',
-      },
-      {
-        text: 'Similar projects required 600-800 combined hours over 16-week timeline',
-        source: 'Historical Project Data',
-      },
-      {
-        text: 'Suggest 10% contingency budget for optimal flexibility and opportunity capture',
-        source: 'Budget Planning Template',
-      },
+      'Recommend social listening tools (Brandwatch or Sprout Social) for real-time sentiment tracking',
+      'Similar projects required 600-800 combined hours over 16-week timeline',
+      'Suggest 10% contingency budget for optimal flexibility and opportunity capture',
     ],
     questions: [
       'What are the biggest risks you foresee?',
@@ -195,18 +141,9 @@ export const defaultSections: SectionData[] = [
       'Corporate Affairs contact details',
     ],
     enhancements: [
-      {
-        text: 'WCAG 2.1 AA compliance increases reach by 15% and reduces legal risk',
-        source: 'Accessibility Standards Guide',
-      },
-      {
-        text: 'Plain language sustainability messaging improves comprehension by 43% vs. technical terminology',
-        source: 'Communications Research',
-      },
-      {
-        text: 'Structured approval process with defined timelines reduces project delays by 35%',
-        source: 'Project Management Best Practices',
-      },
+      'WCAG 2.1 AA compliance increases reach by 15% and reduces legal risk',
+      'Plain language sustainability messaging improves comprehension by 43% vs. technical terminology',
+      'Structured approval process with defined timelines reduces project delays by 35%',
     ],
     questions: [
       'Can you share the full brand guidelines document?',
@@ -226,18 +163,9 @@ export const defaultSections: SectionData[] = [
       'Event calendar with specific dates',
     ],
     enhancements: [
-      {
-        text: 'Integrated campaigns with paid/owned/earned balance show 2.8x higher ROI than single-channel approaches',
-        source: 'Marketing Mix Analysis',
-      },
-      {
-        text: 'Micro-influencers (10K-100K followers) drive 3.5x higher engagement than macro-influencers',
-        source: 'Influencer Marketing Study',
-      },
-      {
-        text: 'Experiential sampling drives 42% higher conversion rates vs. digital-only campaigns',
-        source: 'Activation Database',
-      },
+      'Integrated campaigns with paid/owned/earned balance show 2.8x higher ROI than single-channel approaches',
+      'Micro-influencers (10K-100K followers) drive 3.5x higher engagement than macro-influencers',
+      'Experiential sampling drives 42% higher conversion rates vs. digital-only campaigns',
     ],
     questions: [
       'What is the media budget split across channels?',
@@ -257,18 +185,9 @@ export const defaultSections: SectionData[] = [
       'Meeting cadence and governance',
     ],
     enhancements: [
-      {
-        text: 'Cross-functional team coordination requires weekly sync meetings and shared project management platform',
-        source: 'Project Management Best Practices',
-      },
-      {
-        text: 'Clear RACI matrix reduces internal conflicts by 60% and improves timeline adherence',
-        source: 'Team Collaboration Study',
-      },
-      {
-        text: 'Dedicated project manager for campaigns of this scale improves outcomes by 45%',
-        source: 'Resource Planning Research',
-      },
+      'Cross-functional team coordination requires weekly sync meetings and shared project management platform',
+      'Clear RACI matrix reduces internal conflicts by 60% and improves timeline adherence',
+      'Dedicated project manager for campaigns of this scale improves outcomes by 45%',
     ],
     questions: [
       'What is the bandwidth of each internal team?',
@@ -288,18 +207,9 @@ export const defaultSections: SectionData[] = [
       'Key contact names',
     ],
     enhancements: [
-      {
-        text: 'Agency coordination requires clear brief, single point of contact, and weekly status meetings',
-        source: 'Agency Management Guide',
-      },
-      {
-        text: 'Production company should be selected 8-10 weeks before shoot date for optimal results',
-        source: 'Production Planning Timeline',
-      },
-      {
-        text: 'Research partner engagement early ensures proper baseline measurement before campaign launch',
-        source: 'Measurement Framework',
-      },
+      'Agency coordination requires clear brief, single point of contact, and weekly status meetings',
+      'Production company should be selected 8-10 weeks before shoot date for optimal results',
+      'Research partner engagement early ensures proper baseline measurement before campaign launch',
     ],
     questions: [
       'What are the current agency contracts and scope?',
@@ -319,18 +229,9 @@ export const defaultSections: SectionData[] = [
       'Key stakeholder map',
     ],
     enhancements: [
-      {
-        text: 'Social listening tools enable 85% faster issue detection and response vs. manual monitoring',
-        source: 'Crisis Management Research',
-      },
-      {
-        text: 'Pre-campaign stakeholder alignment reduces mid-flight changes by 65%',
-        source: 'Project Management Study',
-      },
-      {
-        text: 'Crisis simulation exercises improve response effectiveness by 3.2x',
-        source: 'Risk Management Best Practices',
-      },
+      'Social listening tools enable 85% faster issue detection and response vs. manual monitoring',
+      'Pre-campaign stakeholder alignment reduces mid-flight changes by 65%',
+      'Crisis simulation exercises improve response effectiveness by 3.2x',
     ],
     questions: [
       'What is your risk appetite for this campaign?',
@@ -350,18 +251,9 @@ export const defaultSections: SectionData[] = [
       'Sample sizes and methodology',
     ],
     enhancements: [
-      {
-        text: 'Pre-campaign research investment typically 8-12% of total budget for optimal strategic foundation',
-        source: 'Research Planning Guide',
-      },
-      {
-        text: 'Brand lift studies with pre/mid/post measurement enable 2.1x better campaign optimisation',
-        source: 'Measurement Framework',
-      },
-      {
-        text: 'Message testing reduces creative risk by 73% and improves campaign effectiveness',
-        source: 'Research Impact Study',
-      },
+      'Pre-campaign research investment typically 8-12% of total budget for optimal strategic foundation',
+      'Brand lift studies with pre/mid/post measurement enable 2.1x better campaign optimisation',
+      'Message testing reduces creative risk by 73% and improves campaign effectiveness',
     ],
     questions: [
       'Do you have existing brand tracking data?',
@@ -381,18 +273,9 @@ export const defaultSections: SectionData[] = [
       'Posting frequency and cadence',
     ],
     enhancements: [
-      {
-        text: 'Instagram and TikTok over-indexed 2.3x and 3.1x for target audience - prioritise these channels',
-        source: 'Media Consumption Analysis',
-      },
-      {
-        text: 'Multi-channel campaigns drive 2.8x higher ROI than single-channel approaches',
-        source: 'Marketing Mix Analysis',
-      },
-      {
-        text: 'Experiential combined with digital amplification increases campaign impact by 3.4x',
-        source: 'Integrated Campaign Study',
-      },
+      'Instagram and TikTok over-indexed 2.3x and 3.1x for target audience - prioritise these channels',
+      'Multi-channel campaigns drive 2.8x higher ROI than single-channel approaches',
+      'Experiential combined with digital amplification increases campaign impact by 3.4x',
     ],
     questions: [
       'What is the budget allocation by channel?',
@@ -412,18 +295,9 @@ export const defaultSections: SectionData[] = [
       'Regional media buys',
     ],
     enhancements: [
-      {
-        text: 'Priority cities over-index for target demographic by 1.8x vs. national average',
-        source: 'Geographic Analysis',
-      },
-      {
-        text: 'Coordinating digital paid media with experiential activations increases event attendance by 2.6x',
-        source: 'Experiential Marketing Study',
-      },
-      {
-        text: 'International expansion success rate improves 3.1x with proven domestic campaign performance',
-        source: 'Market Expansion Research',
-      },
+      'Priority cities over-index for target demographic by 1.8x vs. national average',
+      'Coordinating digital paid media with experiential activations increases event attendance by 2.6x',
+      'International expansion success rate improves 3.1x with proven domestic campaign performance',
     ],
     questions: [
       'Have venue locations been secured for pop-ups?',
@@ -442,18 +316,9 @@ export const defaultSections: SectionData[] = [
       'Internal stakeholder alignment on positioning',
     ],
     enhancements: [
-      {
-        text: 'Clear differentiated positioning drives 2.4x higher brand preference vs. parity positioning',
-        source: 'Brand Strategy Research',
-      },
-      {
-        text: "Accessibility positioning critical for mass adoption - sustainability can't be perceived as elite/exclusive",
-        source: 'Consumer Attitudes Study',
-      },
-      {
-        text: 'Transparency and proof points critical for Gen Z/Millennial audiences - 82% will switch over inauthenticity',
-        source: 'Consumer Trust Report',
-      },
+      'Clear differentiated positioning drives 2.4x higher brand preference vs. parity positioning',
+      "Accessibility positioning critical for mass adoption - sustainability can't be perceived as elite/exclusive",
+      'Transparency and proof points critical for Gen Z/Millennial audiences - 82% will switch over inauthenticity',
     ],
     questions: [
       'Has this positioning been tested with target audience?',
@@ -468,18 +333,9 @@ export const defaultSections: SectionData[] = [
       "<p>Acme speaks with a distinctive voice that sets us apart in the sustainability category:</p><p><strong>Authentic:</strong> We speak truthfully about our sustainability journey, including the challenges and imperfections. No greenwashing, no exaggeration, no corporate spin – just honest progress. We admit when we don't have all the answers and share what we're learning along the way.</p><p><strong>Optimistic:</strong> We believe in solutions, not just problems. Our voice is hopeful and empowering, not preachy or guilt-inducing. We inspire action rather than paralysis, showing that sustainable choices can be joyful and rewarding, not sacrificial.</p><p><strong>Knowledgeable:</strong> We educate without condescending. We're experts who make sustainability accessible and understandable, translating complex environmental concepts into clear, relatable language. We share insights generously, building trust through transparency.</p><p><strong>Human:</strong> Warm, approachable, conversational. We sound like a trusted friend sharing good news, not a corporate entity making claims. We use \"we\" and \"our\" to build community, and we celebrate progress over perfection.</p><p><strong>Bold:</strong> We're not afraid to challenge industry norms and call out inauthenticity (without naming competitors). We lead, we don't follow. We take stands on environmental issues and back them up with action.</p><p><strong>What We're Not:</strong> Corporate, preachy, guilt-inducing, technical/jargony, exclusive/elitist, perfect/sanctimonious.</p>",
     missing: ['TOV examples and samples', "Do/Don't guidelines", 'Copy style guide'],
     enhancements: [
-      {
-        text: 'Authentic tone of voice builds trust scores 2.1x higher than corporate/promotional messaging',
-        source: 'Communications Research',
-      },
-      {
-        text: 'Optimistic vs. fear-based sustainability messaging drives 3.7x higher engagement and sharing',
-        source: 'Content Effectiveness Study',
-      },
-      {
-        text: 'Conversational brand voice increases brand affinity by 42% among millennial/Gen Z audiences',
-        source: 'Brand Voice Analysis',
-      },
+      'Authentic tone of voice builds trust scores 2.1x higher than corporate/promotional messaging',
+      'Optimistic vs. fear-based sustainability messaging drives 3.7x higher engagement and sharing',
+      'Conversational brand voice increases brand affinity by 42% among millennial/Gen Z audiences',
     ],
     questions: [
       'Can you provide examples of current brand communications?',
@@ -499,18 +355,9 @@ export const defaultSections: SectionData[] = [
       'Audio branding files',
     ],
     enhancements: [
-      {
-        text: 'Distinctive brand assets drive 3.2x higher brand recall and 47% faster recognition in category',
-        source: 'Brand Identity Effectiveness Study',
-      },
-      {
-        text: 'Consistent application of distinctive assets across touchpoints increases brand equity by 28%',
-        source: 'Brand Management Research',
-      },
-      {
-        text: 'Natural imagery style aligns with sustainability positioning and increases authenticity perception by 2.6x',
-        source: 'Visual Communication Study',
-      },
+      'Distinctive brand assets drive 3.2x higher brand recall and 47% faster recognition in category',
+      'Consistent application of distinctive assets across touchpoints increases brand equity by 28%',
+      'Natural imagery style aligns with sustainability positioning and increases authenticity perception by 2.6x',
     ],
     questions: [
       'Can you share the full brand guidelines?',
@@ -530,18 +377,9 @@ export const defaultSections: SectionData[] = [
       'Impact metrics and data',
     ],
     enhancements: [
-      {
-        text: "£5M+ infrastructure investment demonstrates genuine commitment vs. competitors' marketing-only approaches",
-        source: 'Competitive Intelligence',
-      },
-      {
-        text: 'Blockchain supply chain transparency is industry-first differentiator - no competitor offers this',
-        source: 'Technology Innovation Report',
-      },
-      {
-        text: 'Third-party certifications build trust 4.1x higher than self-proclaimed sustainability claims',
-        source: 'Trust & Credibility Study',
-      },
+      "£5M+ infrastructure investment demonstrates genuine commitment vs. competitors' marketing-only approaches",
+      'Blockchain supply chain transparency is industry-first differentiator - no competitor offers this',
+      'Third-party certifications build trust 4.1x higher than self-proclaimed sustainability claims',
     ],
     questions: [
       'Can you provide documentation of certifications?',
@@ -561,18 +399,9 @@ export const defaultSections: SectionData[] = [
       'Impact reporting data',
     ],
     enhancements: [
-      {
-        text: 'Verified certifications increase purchase intent by 3.8x vs. unverified claims',
-        source: 'Consumer Decision-Making Study',
-      },
-      {
-        text: 'Transparency and proof points critical for Gen Z/Millennial audiences - 82% will switch over inauthenticity',
-        source: 'Consumer Trust Report',
-      },
-      {
-        text: 'Performance parity proof removes #1 barrier to sustainable product adoption (perceived quality trade-off)',
-        source: 'Purchase Barriers Research',
-      },
+      'Verified certifications increase purchase intent by 3.8x vs. unverified claims',
+      'Transparency and proof points critical for Gen Z/Millennial audiences - 82% will switch over inauthenticity',
+      'Performance parity proof removes #1 barrier to sustainable product adoption (perceived quality trade-off)',
     ],
     questions: [
       'Can you provide links to certification documentation?',
@@ -592,18 +421,9 @@ export const defaultSections: SectionData[] = [
       'Approval workflow diagram',
     ],
     enhancements: [
-      {
-        text: 'Consistent brand guidelines application increases brand recall by 3.5x and reduces asset rework by 60%',
-        source: 'Brand Management Study',
-      },
-      {
-        text: 'Structured approval workflows with defined timelines reduce project delays by 35%',
-        source: 'Project Management Best Practices',
-      },
-      {
-        text: 'Agency brand training improves first-round approval rates by 2.8x',
-        source: 'Agency Collaboration Research',
-      },
+      'Consistent brand guidelines application increases brand recall by 3.5x and reduces asset rework by 60%',
+      'Structured approval workflows with defined timelines reduce project delays by 35%',
+      'Agency brand training improves first-round approval rates by 2.8x',
     ],
     questions: [
       'Can you share the complete brand guidelines document?',

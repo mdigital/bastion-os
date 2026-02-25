@@ -76,10 +76,32 @@ export default function ClientsPage() {
 
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {clients.map((c) => (
-            <li key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid #eee' }}>
+            <li
+              key={c.id}
+              style={{
+                padding: '8px 0',
+                borderBottom: '1px solid #eee',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
               <Link to={`/clients/${c.id}`}>
                 {c.name}
                 {c.industry && <span style={{ color: '#888', marginLeft: 8 }}>({c.industry})</span>}
+              </Link>
+              <Link
+                to={`/clients/${c.id}/briefs/new`}
+                style={{
+                  fontSize: '0.875rem',
+                  color: '#000',
+                  backgroundColor: '#facc15',
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                }}
+              >
+                New Brief
               </Link>
             </li>
           ))}

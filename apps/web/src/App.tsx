@@ -10,6 +10,7 @@ import AdminPage from './pages/AdminPage.tsx'
 import PromptsPage from './pages/PromptsPage.tsx'
 import PracticesPage from './pages/PracticesPage.tsx'
 import PracticeTemplatesPage from './pages/PracticeTemplatesPage.tsx'
+import BriefCreatePage from './pages/BriefCreatePage.tsx'
 
 function App() {
   return (
@@ -31,6 +32,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <HomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clients/:clientId/briefs/new"
+              element={
+                <ProtectedRoute>
+                  <BriefCreatePage />
                 </ProtectedRoute>
               }
             />
