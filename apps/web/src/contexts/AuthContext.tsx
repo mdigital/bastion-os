@@ -8,6 +8,7 @@ interface AuthState {
   user: User | null
   session: Session | null
   userRole: UserRole | null
+  fullName: string | null
   loading: boolean
   signIn: (email: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
@@ -15,14 +16,18 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
 
-async function fetchRole(accessToken: string): Promise<UserRole | null> {
+interface ProfileData {
+  role: UserRole
+  full_name: string | null
+}
+
+async function fetchProfile(accessToken: string): Promise<ProfileData | null> {
   try {
     const res = await fetch('/api/me', {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
     if (!res.ok) return null
-    const profile = (await res.json()) as { role: UserRole }
-    return profile.role
+    return (await res.json()) as ProfileData
   } catch {
     return null
   }
@@ -32,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [userRole, setUserRole] = useState<UserRole | null>(null)
+  const [fullName, setFullName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -40,7 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s)
       setUser(s?.user ?? null)
       if (s) {
-        setUserRole(await fetchRole(s.access_token))
+        const profile = await fetchProfile(s.access_token)
+        setUserRole(profile?.role ?? null)
+        setFullName(profile?.full_name ?? null)
       }
       setLoading(false)
     })
@@ -52,9 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s)
       setUser(s?.user ?? null)
       if (s) {
-        setUserRole(await fetchRole(s.access_token))
+        const profile = await fetchProfile(s.access_token)
+        setUserRole(profile?.role ?? null)
+        setFullName(profile?.full_name ?? null)
       } else {
         setUserRole(null)
+        setFullName(null)
       }
       setLoading(false)
     })
@@ -73,10 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut()
     setUserRole(null)
+    setFullName(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, userRole, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, userRole, fullName, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

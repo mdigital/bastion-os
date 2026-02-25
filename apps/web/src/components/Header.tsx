@@ -3,16 +3,28 @@ import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import Hamburger from '../components/Hamburger'
 import { useNavigate } from 'react-router-dom'
-import { currentUser } from '../data/mockData'
+
+function getInitials(name: string | null, email: string | null): string {
+  if (name) {
+    return name
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
+  if (email) return email[0].toUpperCase()
+  return '?'
+}
 
 export default function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
-  const { signOut } = useAuth()
+  const { user, fullName, signOut } = useAuth()
   const navigate = useNavigate()
 
-  const userName = currentUser.name
-  const userEmail = currentUser.email
-  const userInitials = currentUser.initials
+  const userEmail = user?.email ?? ''
+  const userName = fullName || userEmail
+  const userInitials = getInitials(fullName, userEmail)
 
   const handleLogout = () => {
     signOut()
