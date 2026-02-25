@@ -357,9 +357,13 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
             writeSSE('delta', { text })
           }
         }
-      } catch (err) {
-        fastify.log.warn({ err }, 'Gemini generateContentStream failed — files may need re-preparation')
-        writeSSE('error', { message: 'Document files may have expired. Please reopen the conversation to refresh them.' })
+      } catch (err: unknown) {
+        fastify.log.warn({ err }, 'Gemini generateContentStream failed')
+        const status = (err as { status?: number }).status
+        const message = status === 429
+          ? 'AI service is busy. Please wait a moment and try again.'
+          : 'Document files may have expired. Please reopen the conversation to refresh them.'
+        writeSSE('error', { message })
         reply.raw.end()
         return reply
       }
