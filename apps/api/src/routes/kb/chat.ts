@@ -326,9 +326,21 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         'You are a knowledge base assistant. Answer questions based on the provided documents. If you cannot find the answer in the documents, say so clearly.',
       )
 
-      let response
+      // Switch to SSE for streaming response
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+
+      function writeSSE(event: string, data: unknown) {
+        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+      }
+
+      let fullText = ''
+
       try {
-        response = await gemini.models.generateContent({
+        const stream = await gemini.models.generateContentStream({
           model: 'gemini-2.0-flash',
           config: { systemInstruction },
           contents: [
@@ -337,17 +349,22 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
             { role: 'user', parts: [{ text: content }] },
           ],
         })
+
+        for await (const chunk of stream) {
+          const text = chunk.text ?? ''
+          if (text) {
+            fullText += text
+            writeSSE('delta', { text })
+          }
+        }
       } catch (err) {
-        // If Gemini rejects stale URIs, tell user to retry (files need re-preparation)
-        fastify.log.warn({ err }, 'Gemini generateContent failed — files may need re-preparation')
-        return reply.code(422).send({
-          statusCode: 422,
-          error: 'Unprocessable Entity',
-          message: 'Document files may have expired. Please reopen the conversation to refresh them.',
-        })
+        fastify.log.warn({ err }, 'Gemini generateContentStream failed — files may need re-preparation')
+        writeSSE('error', { message: 'Document files may have expired. Please reopen the conversation to refresh them.' })
+        reply.raw.end()
+        return reply
       }
 
-      const assistantContent = response.text ?? 'I was unable to generate a response.'
+      const assistantContent = fullText || 'I was unable to generate a response.'
 
       // Save assistant message
       const { data: assistantMsg, error: assistantMsgErr } = await supabaseAdmin
@@ -360,9 +377,15 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         .select()
         .single()
 
-      if (assistantMsgErr) return reply.internalServerError(assistantMsgErr.message)
+      if (assistantMsgErr) {
+        writeSSE('error', { message: 'Failed to save response' })
+        reply.raw.end()
+        return reply
+      }
 
-      return reply.code(201).send(assistantMsg)
+      writeSSE('done', { id: assistantMsg.id, content: assistantMsg.content, created_at: assistantMsg.created_at })
+      reply.raw.end()
+      return reply
     },
   )
 }

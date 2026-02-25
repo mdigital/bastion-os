@@ -186,6 +186,10 @@ export default function ClientKBPage() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
 
+      if (res.status === 404) {
+        // API doesn't have prepare-files yet — old API handles files inline
+        return
+      }
       if (!res.ok || !res.body) {
         throw new Error(`Prepare files failed: ${res.status}`)
       }
@@ -274,27 +278,103 @@ export default function ClientKBPage() {
       created_at: new Date().toISOString(),
     }
 
+    const streamingMsg: Message = {
+      id: 'streaming',
+      role: 'assistant',
+      content: '',
+      created_at: new Date().toISOString(),
+    }
+
     setActiveConv((prev) =>
-      prev ? { ...prev, messages: [...prev.messages, userMsg] } : prev,
+      prev ? { ...prev, messages: [...prev.messages, userMsg, streamingMsg] } : prev,
     )
     setMsgInput('')
     setSending(true)
     setError(null)
 
     try {
-      const assistantMsg = await apiFetch<Message>(
-        `${base}/conversations/${activeConv.id}/messages`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: userMsg.content }),
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
+
+      const res = await fetch(`${base}/conversations/${activeConv.id}/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
         },
-      )
-      setActiveConv((prev) =>
-        prev ? { ...prev, messages: [...prev.messages, assistantMsg] } : prev,
-      )
+        body: JSON.stringify({ content: userMsg.content }),
+      })
+
+      if (!res.ok || !res.body) {
+        throw new Error(`Request failed: ${res.status}`)
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() || ''
+
+        for (const part of parts) {
+          const lines = part.split('\n')
+          let eventType = ''
+          let data = ''
+          for (const line of lines) {
+            if (line.startsWith('event: ')) eventType = line.slice(7)
+            else if (line.startsWith('data: ')) data = line.slice(6)
+          }
+          if (!data) continue
+
+          try {
+            const parsed = JSON.parse(data)
+            if (eventType === 'delta') {
+              setActiveConv((prev) => {
+                if (!prev) return prev
+                return {
+                  ...prev,
+                  messages: prev.messages.map((m) =>
+                    m.id === 'streaming'
+                      ? { ...m, content: m.content + parsed.text }
+                      : m,
+                  ),
+                }
+              })
+            } else if (eventType === 'done') {
+              setActiveConv((prev) => {
+                if (!prev) return prev
+                return {
+                  ...prev,
+                  messages: prev.messages.map((m) =>
+                    m.id === 'streaming'
+                      ? { id: parsed.id, role: 'assistant', content: parsed.content, created_at: parsed.created_at }
+                      : m,
+                  ),
+                }
+              })
+            } else if (eventType === 'error') {
+              setError(parsed.message || 'Failed to get response')
+              // Remove the streaming placeholder
+              setActiveConv((prev) => {
+                if (!prev) return prev
+                return { ...prev, messages: prev.messages.filter((m) => m.id !== 'streaming') }
+              })
+            }
+          } catch { /* ignore parse errors */ }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
+      // Remove the streaming placeholder on network error
+      setActiveConv((prev) => {
+        if (!prev) return prev
+        return { ...prev, messages: prev.messages.filter((m) => m.id !== 'streaming') }
+      })
     } finally {
       setSending(false)
     }
@@ -493,9 +573,6 @@ export default function ClientKBPage() {
                     </div>
                   </div>
                 ))}
-                {sending && (
-                  <div style={{ color: '#888', fontStyle: 'italic' }}>Thinking...</div>
-                )}
               </div>
               <form onSubmit={handleSend} style={{ display: 'flex', gap: 8 }}>
                 <input
