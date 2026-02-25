@@ -57,6 +57,10 @@ export default function ClientKBPage() {
   const [sending, setSending] = useState(false)
   const [creatingConv, setCreatingConv] = useState(false)
 
+  // File preparation state
+  const [preparingFiles, setPreparingFiles] = useState(false)
+  const [prepareProgress, setPrepareProgress] = useState<{ current: number; total: number; fileName: string } | null>(null)
+
   // Suggestions state
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
 
@@ -170,6 +174,59 @@ export default function ClientKBPage() {
     }
   }
 
+  async function prepareConversationFiles(convId: string) {
+    setPreparingFiles(true)
+    setPrepareProgress(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
+
+      const res = await fetch(`${base}/conversations/${convId}/prepare-files`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+
+      if (!res.ok || !res.body) {
+        throw new Error(`Prepare files failed: ${res.status}`)
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        // Parse SSE events from buffer
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() || ''
+
+        for (const part of parts) {
+          const lines = part.split('\n')
+          let eventType = ''
+          let data = ''
+          for (const line of lines) {
+            if (line.startsWith('event: ')) eventType = line.slice(7)
+            else if (line.startsWith('data: ')) data = line.slice(6)
+          }
+          if (eventType === 'progress' && data) {
+            try {
+              const progress = JSON.parse(data)
+              setPrepareProgress({ current: progress.current, total: progress.total, fileName: progress.fileName })
+            } catch { /* ignore parse errors */ }
+          }
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to prepare files')
+    } finally {
+      setPreparingFiles(false)
+      setPrepareProgress(null)
+    }
+  }
+
   async function handleNewConversation() {
     if (sources.length === 0) {
       setError('Upload at least one document first')
@@ -185,6 +242,8 @@ export default function ClientKBPage() {
       })
       setConversations((prev) => [...prev, conv])
       setActiveConv({ ...conv, messages: [] })
+      // Prepare files in background (non-blocking — files are fresh from upload but this ensures cache)
+      prepareConversationFiles(conv.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create conversation')
     } finally {
@@ -197,6 +256,8 @@ export default function ClientKBPage() {
     try {
       const detail = await apiFetch<ConversationDetail>(`${base}/conversations/${convId}`)
       setActiveConv(detail)
+      // Prepare files — verifies cached Gemini URIs and re-uploads stale ones
+      prepareConversationFiles(convId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversation')
     }
@@ -383,6 +444,22 @@ export default function ClientKBPage() {
               >
                 &larr; Back to list
               </button>
+              {preparingFiles && (
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    marginBottom: 8,
+                    background: '#e3f2fd',
+                    borderRadius: 4,
+                    fontSize: 13,
+                    color: '#1565c0',
+                  }}
+                >
+                  {prepareProgress
+                    ? `Preparing documents... (${prepareProgress.current}/${prepareProgress.total}) — ${prepareProgress.fileName}`
+                    : 'Preparing documents...'}
+                </div>
+              )}
               <div
                 style={{
                   border: '1px solid #ddd',
@@ -425,11 +502,11 @@ export default function ClientKBPage() {
                   type="text"
                   value={msgInput}
                   onChange={(e) => setMsgInput(e.target.value)}
-                  placeholder="Ask about your documents..."
-                  disabled={sending}
+                  disabled={sending || preparingFiles}
+                  placeholder={preparingFiles ? 'Preparing documents...' : 'Ask about your documents...'}
                   style={{ flex: 1, padding: 8 }}
                 />
-                <button type="submit" disabled={sending || !msgInput.trim()}>
+                <button type="submit" disabled={sending || preparingFiles || !msgInput.trim()}>
                   Send
                 </button>
               </form>
