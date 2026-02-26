@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import type { DragEvent, SubmitEventHandler } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../lib/api.ts'
 import { supabase } from '../lib/supabase.ts'
 import Layout from '../components/Layout.tsx'
@@ -88,7 +88,10 @@ interface UploadingFile {
 
 export default function ClientKBPage() {
   const { clientId } = useParams<{ clientId: string }>()
+  const navigate = useNavigate()
   const base = `/api/kb/clients/${clientId}`
+
+  const [clientName, setClientName] = useState<string | null>(null)
 
   // Sources state
   const [sources, setSources] = useState<Source[]>([])
@@ -127,6 +130,29 @@ export default function ClientKBPage() {
       .then(setSuggestions)
       .catch((e) => setError(e.message))
   }, [base])
+
+  useEffect(() => {
+    if (!clientId) return
+
+    const loadClientName = async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('name')
+        .eq('id', clientId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Failed to load client name:', error.message)
+        return
+      }
+
+      const name = data?.name ?? null
+
+      setClientName(name)
+    }
+
+    void loadClientName()
+  }, [clientId])
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -470,16 +496,16 @@ export default function ClientKBPage() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => console.log('Back to clients')}
-                className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors"
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span className="text-sm">Back to Clients</span>
               </button>
               <div className="w-px h-6 bg-gray-300"></div>
               <div>
-                <h2 className="font-bold text-xl">{'clientName'}</h2>
-                <p className="text-sm text-gray-600">Automotive Industry</p>
+                <h2 className="font-bold text-xl">{clientName}</h2>
+                <p className="text-sm text-gray-600">TODO: Automotive Industry</p>
               </div>
             </div>
           </div>
@@ -538,7 +564,7 @@ export default function ClientKBPage() {
                 {sources.map((source) => (
                   <li
                     key={source.id}
-                    className="flex items-center gap-2 px-0 py-2 text-sm hover:bg-gray-50 rounded-lg transition-colors group"
+                    className="flex items-center gap-2 px-0 py-2 text-sm hover:bg-gray-50 rounded-lg transition-colors group cursor-pointer"
                   >
                     <div className="w-4 h-4 flex items-center justify-center cursor-pointer"></div>
                     <FileText className="w-4 h-4 text-red-500 shrink-0" />
@@ -564,11 +590,17 @@ export default function ClientKBPage() {
                   <button
                     type="button"
                     onClick={() => setActiveConv(null)}
-                    className="mb-2 text-xs"
+                    className="mb-2 inline-flex items-center gap-1 text-xs cursor-pointer"
                   >
-                    &larr; Back to list
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="text-sm">Back to List</span>
                   </button>
-                  <button type="button" onClick={handleNewConversation} disabled={creatingConv}>
+                  <button
+                    className="cursor-pointer"
+                    type="button"
+                    onClick={handleNewConversation}
+                    disabled={creatingConv}
+                  >
                     {creatingConv ? 'Creating...' : 'New conversation'}
                   </button>
                 </div>
@@ -610,7 +642,7 @@ export default function ClientKBPage() {
                     className="flex-1 p-2 border border-[#ddd] rounded"
                   />
                   <button
-                    className="bg-black px-4 py-2 rounded"
+                    className="bg-black hover:bg-zinc-800 transition-colors px-4 py-2 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     type="submit"
                     disabled={sending || preparingFiles || !msgInput.trim()}
                   >
@@ -657,7 +689,12 @@ export default function ClientKBPage() {
               <div className="p-4 flex min-h-0 flex-1 flex-col">
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="font-bold text-sm m-0">Chat</h3>
-                  <button type="button" onClick={handleNewConversation} disabled={creatingConv}>
+                  <button
+                    className="cursor-pointer"
+                    type="button"
+                    onClick={handleNewConversation}
+                    disabled={creatingConv}
+                  >
                     {creatingConv ? 'Creating...' : 'New conversation'}
                   </button>
                 </div>
