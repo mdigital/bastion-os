@@ -1,8 +1,54 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import type { FormEvent, DragEvent } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import type { DragEvent, SubmitEventHandler } from 'react'
+import { useParams } from 'react-router-dom'
 import { apiFetch } from '../lib/api.ts'
 import { supabase } from '../lib/supabase.ts'
+import Layout from '../components/Layout.tsx'
+// prettier-ignore
+import { ArrowLeft, BarChart3, FileText, Network, PieChart, Presentation, Send, Sparkles, X, Zap } from 'lucide-react'
+
+const Icons = [
+  {
+    label: 'Summarise key goals',
+    icon: FileText,
+    color: 'text-purple-600',
+  },
+  {
+    label: 'Competitor analysis',
+    icon: BarChart3,
+    color: 'text-green-600',
+  },
+  {
+    label: 'Target audience',
+    icon: Network,
+    color: 'text-pink-600',
+  },
+  {
+    label: 'Campaign timeline',
+    icon: Presentation,
+    color: 'text-yellow-600',
+  },
+  {
+    label: 'Key challenges',
+    icon: Zap,
+    color: 'text-red-600',
+  },
+  {
+    label: 'Strategy ideas',
+    icon: Sparkles,
+    color: 'text-blue-600',
+  },
+  {
+    label: 'Brand positioning',
+    icon: PieChart,
+    color: 'text-purple-600',
+  },
+  {
+    label: 'Budget info',
+    icon: FileText,
+    color: 'text-orange-600',
+  },
+]
 
 interface Source {
   id: string
@@ -59,80 +105,94 @@ export default function ClientKBPage() {
 
   // File preparation state
   const [preparingFiles, setPreparingFiles] = useState(false)
-  const [prepareProgress, setPrepareProgress] = useState<{ current: number; total: number; fileName: string } | null>(null)
+  const [prepareProgress, setPrepareProgress] = useState<{
+    current: number
+    total: number
+    fileName: string
+  } | null>(null)
 
   // Suggestions state
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
-
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useState<string | null>(null)
 
   // Load sources + conversations + suggestions on mount
   useEffect(() => {
-    apiFetch<Source[]>(`${base}/sources`).then(setSources).catch((e) => setError(e.message))
-    apiFetch<Conversation[]>(`${base}/conversations`).then(setConversations).catch((e) => setError(e.message))
-    apiFetch<Suggestion[]>('/api/kb/suggestions').then(setSuggestions).catch((e) => setError(e.message))
+    apiFetch<Source[]>(`${base}/sources`)
+      .then(setSources)
+      .catch((e) => setError(e.message))
+    apiFetch<Conversation[]>(`${base}/conversations`)
+      .then(setConversations)
+      .catch((e) => setError(e.message))
+    apiFetch<Suggestion[]>('/api/kb/suggestions')
+      .then(setSuggestions)
+      .catch((e) => setError(e.message))
   }, [base])
 
-  async function uploadSingleFile(file: File): Promise<Source | null> {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('Not authenticated')
+  const handleFiles = useCallback(
+    async (files: FileList | File[]) => {
+      const fileArray = Array.from(files)
+      if (fileArray.length === 0) return
 
-    const form = new FormData()
-    form.append('file', file)
+      setError(null)
 
-    const res = await fetch(`${base}/sources`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}` },
-      body: form,
-    })
-    if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
-    return (await res.json()) as Source
-  }
+      // Add all files as "uploading"
+      const newUploading: UploadingFile[] = fileArray.map((f) => ({
+        name: f.name,
+        status: 'uploading' as const,
+      }))
+      setUploadingFiles((prev) => [...prev, ...newUploading])
 
-  const handleFiles = useCallback(async (files: FileList | File[]) => {
-    const fileArray = Array.from(files)
-    if (fileArray.length === 0) return
+      async function uploadSingleFile(file: File): Promise<Source | null> {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session) throw new Error('Not authenticated')
 
-    setError(null)
+        const form = new FormData()
+        form.append('file', file)
 
-    // Add all files as "uploading"
-    const newUploading: UploadingFile[] = fileArray.map((f) => ({
-      name: f.name,
-      status: 'uploading' as const,
-    }))
-    setUploadingFiles((prev) => [...prev, ...newUploading])
-
-    for (let i = 0; i < fileArray.length; i++) {
-      const file = fileArray[i]
-      try {
-        const source = await uploadSingleFile(file)
-        if (source) {
-          setSources((prev) => [...prev, source])
-        }
-        setUploadingFiles((prev) =>
-          prev.map((u) =>
-            u.name === file.name && u.status === 'uploading'
-              ? { ...u, status: 'done' as const }
-              : u,
-          ),
-        )
-      } catch (err) {
-        setUploadingFiles((prev) =>
-          prev.map((u) =>
-            u.name === file.name && u.status === 'uploading'
-              ? { ...u, status: 'error' as const }
-              : u,
-          ),
-        )
-        setError(err instanceof Error ? err.message : `Failed to upload ${file.name}`)
+        const res = await fetch(`${base}/sources`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: form,
+        })
+        if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+        return (await res.json()) as Source
       }
-    }
 
-    // Clear completed uploads after a brief delay
-    setTimeout(() => {
-      setUploadingFiles((prev) => prev.filter((u) => u.status === 'uploading'))
-    }, 2000)
-  }, [base])
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i]
+        try {
+          const source = await uploadSingleFile(file)
+          if (source) {
+            setSources((prev) => [...prev, source])
+          }
+          setUploadingFiles((prev) =>
+            prev.map((u) =>
+              u.name === file.name && u.status === 'uploading'
+                ? { ...u, status: 'done' as const }
+                : u,
+            ),
+          )
+        } catch (err) {
+          setUploadingFiles((prev) =>
+            prev.map((u) =>
+              u.name === file.name && u.status === 'uploading'
+                ? { ...u, status: 'error' as const }
+                : u,
+            ),
+          )
+          setError(err instanceof Error ? err.message : `Failed to upload ${file.name}`)
+        }
+      }
+
+      // Clear completed uploads after a brief delay
+      setTimeout(() => {
+        setUploadingFiles((prev) => prev.filter((u) => u.status === 'uploading'))
+      }, 2000)
+    },
+    [base],
+  )
 
   function handleDragOver(e: DragEvent) {
     e.preventDefault()
@@ -178,7 +238,9 @@ export default function ClientKBPage() {
     setPreparingFiles(true)
     setPrepareProgress(null)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
       const res = await fetch(`${base}/conversations/${convId}/prepare-files`, {
@@ -218,8 +280,14 @@ export default function ClientKBPage() {
           if (eventType === 'progress' && data) {
             try {
               const progress = JSON.parse(data)
-              setPrepareProgress({ current: progress.current, total: progress.total, fileName: progress.fileName })
-            } catch { /* ignore parse errors */ }
+              setPrepareProgress({
+                current: progress.current,
+                total: progress.total,
+                fileName: progress.fileName,
+              })
+            } catch {
+              /* ignore parse errors */
+            }
           }
         }
       }
@@ -267,7 +335,7 @@ export default function ClientKBPage() {
     }
   }
 
-  async function handleSend(e: FormEvent) {
+  const handleSend: SubmitEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault()
     if (!activeConv || !msgInput.trim()) return
 
@@ -293,7 +361,9 @@ export default function ClientKBPage() {
     setError(null)
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
       const res = await fetch(`${base}/conversations/${activeConv.id}/messages`, {
@@ -339,9 +409,7 @@ export default function ClientKBPage() {
                 return {
                   ...prev,
                   messages: prev.messages.map((m) =>
-                    m.id === 'streaming'
-                      ? { ...m, content: m.content + parsed.text }
-                      : m,
+                    m.id === 'streaming' ? { ...m, content: m.content + parsed.text } : m,
                   ),
                 }
               })
@@ -352,7 +420,12 @@ export default function ClientKBPage() {
                   ...prev,
                   messages: prev.messages.map((m) =>
                     m.id === 'streaming'
-                      ? { id: parsed.id, role: 'assistant', content: parsed.content, created_at: parsed.created_at }
+                      ? {
+                          id: parsed.id,
+                          role: 'assistant',
+                          content: parsed.content,
+                          created_at: parsed.created_at,
+                        }
                       : m,
                   ),
                 }
@@ -362,10 +435,15 @@ export default function ClientKBPage() {
               // Remove the streaming placeholder
               setActiveConv((prev) => {
                 if (!prev) return prev
-                return { ...prev, messages: prev.messages.filter((m) => m.id !== 'streaming') }
+                return {
+                  ...prev,
+                  messages: prev.messages.filter((m) => m.id !== 'streaming'),
+                }
               })
             }
-          } catch { /* ignore parse errors */ }
+          } catch {
+            /* ignore parse errors */
+          }
         }
       }
     } catch (err) {
@@ -373,7 +451,10 @@ export default function ClientKBPage() {
       // Remove the streaming placeholder on network error
       setActiveConv((prev) => {
         if (!prev) return prev
-        return { ...prev, messages: prev.messages.filter((m) => m.id !== 'streaming') }
+        return {
+          ...prev,
+          messages: prev.messages.filter((m) => m.id !== 'streaming'),
+        }
       })
     } finally {
       setSending(false)
@@ -383,247 +464,225 @@ export default function ClientKBPage() {
   const isUploading = uploadingFiles.some((u) => u.status === 'uploading')
 
   return (
-    <div style={{ maxWidth: 1280, margin: '40px auto', padding: '0 16px' }}>
-      <Link to="/">&larr; All clients</Link>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      <div style={{ display: 'flex', gap: 32, marginTop: 16 }}>
-        {/* Sources panel */}
-        <div style={{ flex: '0 0 320px' }}>
-          <h2>Sources</h2>
-
-          {/* Drop zone */}
-          <div
-            onClick={handleDropZoneClick}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            style={{
-              border: `2px dashed ${dragOver ? '#2196f3' : '#ccc'}`,
-              borderRadius: 8,
-              padding: 24,
-              textAlign: 'center',
-              cursor: 'pointer',
-              marginBottom: 16,
-              background: dragOver ? '#e3f2fd' : '#fafafa',
-              transition: 'border-color 0.2s, background 0.2s',
-            }}
-          >
-            <input
-              type="file"
-              ref={fileRef}
-              multiple
-              onChange={handleFileInputChange}
-              style={{ display: 'none' }}
-            />
-            <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
-              {isUploading
-                ? 'Uploading...'
-                : 'Drag & drop files here, or click to browse'}
-            </p>
-          </div>
-
-          {/* Upload progress */}
-          {uploadingFiles.length > 0 && (
-            <ul style={{ listStyle: 'none', padding: 0, marginBottom: 12 }}>
-              {uploadingFiles.map((u, i) => (
-                <li
-                  key={`${u.name}-${i}`}
-                  style={{
-                    padding: '4px 0',
-                    fontSize: 13,
-                    color:
-                      u.status === 'uploading'
-                        ? '#1976d2'
-                        : u.status === 'done'
-                          ? '#388e3c'
-                          : '#d32f2f',
-                  }}
-                >
-                  {u.name}{' '}
-                  {u.status === 'uploading' && '— uploading...'}
-                  {u.status === 'done' && '— done'}
-                  {u.status === 'error' && '— failed'}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Source list */}
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {sources.map((s) => (
-              <li
-                key={s.id}
-                style={{
-                  padding: '6px 0',
-                  borderBottom: '1px solid #eee',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <span style={{ fontSize: 14 }}>{s.file_name}</span>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(s.id)}
-                  style={{ fontSize: 12 }}
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
-          {sources.length === 0 && !isUploading && (
-            <p style={{ color: '#888' }}>No documents yet.</p>
-          )}
-        </div>
-
-        {/* Chat panel */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2>Chat</h2>
-            <button type="button" onClick={handleNewConversation} disabled={creatingConv}>
-              {creatingConv ? 'Creating...' : 'New conversation'}
-            </button>
-          </div>
-
-          {/* Conversation list */}
-          {!activeConv && (
-            <ul style={{ listStyle: 'none', padding: 0 }}>
-              {conversations.map((c) => (
-                <li key={c.id} style={{ padding: '6px 0', borderBottom: '1px solid #eee' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenConversation(c.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      width: '100%',
-                      padding: 4,
-                    }}
-                  >
-                    {c.title || `Conversation ${c.created_at.slice(0, 10)}`}
-                  </button>
-                </li>
-              ))}
-              {conversations.length === 0 && (
-                <p style={{ color: '#888' }}>No conversations yet. Upload docs and start one.</p>
-              )}
-            </ul>
-          )}
-
-          {/* Active conversation */}
-          {activeConv && (
-            <div>
+    <Layout>
+      <div className="mx-auto my-10 max-w-350 px-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
               <button
-                type="button"
-                onClick={() => setActiveConv(null)}
-                style={{ marginBottom: 8, fontSize: 12 }}
+                onClick={() => console.log('Back to clients')}
+                className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors"
               >
-                &larr; Back to list
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm">Back to Clients</span>
               </button>
-              {preparingFiles && (
-                <div
-                  style={{
-                    padding: '8px 12px',
-                    marginBottom: 8,
-                    background: '#e3f2fd',
-                    borderRadius: 4,
-                    fontSize: 13,
-                    color: '#1565c0',
-                  }}
-                >
-                  {prepareProgress
-                    ? `Preparing documents... (${prepareProgress.current}/${prepareProgress.total}) — ${prepareProgress.fileName}`
-                    : 'Preparing documents...'}
-                </div>
-              )}
+              <div className="w-px h-6 bg-gray-300"></div>
+              <div>
+                <h2 className="font-bold text-xl">{'clientName'}</h2>
+                <p className="text-sm text-gray-600">Automotive Industry</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex min-h-150 max-h-[calc(100vh-500px)] gap-4 mb-8">
+          <div className="w-64 bg-white rounded-xl border border-gray-200 flex flex-col">
+            <div className="p-4 border-gray-200">
+              <h3 className="font-bold text-sm mb-2">Sources</h3>
+              <p className="text-xs text-gray-600 mb-3">{sources.length} documents</p>
               <div
-                style={{
-                  border: '1px solid #ddd',
-                  borderRadius: 4,
-                  padding: 12,
-                  height: 400,
-                  overflowY: 'auto',
-                  marginBottom: 8,
-                }}
+                onClick={handleDropZoneClick}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`mb-4 cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors duration-200 ${
+                  dragOver ? 'border-[#2196f3] bg-[#e3f2fd]' : 'border-[#ccc] bg-[#fafafa]'
+                }`}
               >
-                {activeConv.messages.map((m) => (
-                  <div
-                    key={m.id}
-                    style={{
-                      marginBottom: 12,
-                      textAlign: m.role === 'user' ? 'right' : 'left',
-                    }}
-                  >
-                    <div
+                <input
+                  type="file"
+                  ref={fileRef}
+                  multiple
+                  onChange={handleFileInputChange}
+                  style={{ display: 'none' }}
+                />
+                <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
+                  {isUploading ? 'Uploading...' : 'Drag & drop files here, or click to browse'}
+                </p>
+              </div>
+              {/* Upload progress */}
+              {uploadingFiles.length > 0 && (
+                <ul style={{ listStyle: 'none', padding: 0, marginBottom: 12 }}>
+                  {uploadingFiles.map((u, i) => (
+                    <li
+                      key={`${u.name}-${i}`}
                       style={{
-                        display: 'inline-block',
-                        background: m.role === 'user' ? '#e3f2fd' : '#f5f5f5',
-                        padding: '8px 12px',
-                        borderRadius: 8,
-                        maxWidth: '80%',
-                        textAlign: 'left',
-                        whiteSpace: 'pre-wrap',
+                        padding: '4px 0',
+                        fontSize: 13,
+                        color:
+                          u.status === 'uploading'
+                            ? '#1976d2'
+                            : u.status === 'done'
+                              ? '#388e3c'
+                              : '#d32f2f',
                       }}
                     >
-                      {m.content}
-                    </div>
-                  </div>
+                      {u.name} {u.status === 'uploading' && '— uploading...'}
+                      {u.status === 'done' && '— done'}
+                      {u.status === 'error' && '— failed'}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {/* Source list */}
+              <ul className="space-y-1">
+                {sources.map((source) => (
+                  <li
+                    key={source.id}
+                    className="flex items-center gap-2 px-0 py-2 text-sm hover:bg-gray-50 rounded-lg transition-colors group"
+                  >
+                    <div className="w-4 h-4 flex items-center justify-center cursor-pointer"></div>
+                    <FileText className="w-4 h-4 text-red-500 shrink-0" />
+                    <span className="truncate text-xs flex-1">{source.file_name}</span>
+                    <button
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
+                      onClick={() => handleDelete(source.id)}
+                    >
+                      <X className="w-3 h-3 text-red-600" />
+                    </button>
+                  </li>
                 ))}
+              </ul>
+              {sources.length === 0 && !isUploading && (
+                <p style={{ color: '#888' }}>No documents yet.</p>
+              )}
+            </div>
+          </div>
+          {activeConv && suggestions.length > 0 && (
+            <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col">
+              <div className="p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setActiveConv(null)}
+                    className="mb-2 text-xs"
+                  >
+                    &larr; Back to list
+                  </button>
+                  <button type="button" onClick={handleNewConversation} disabled={creatingConv}>
+                    {creatingConv ? 'Creating...' : 'New conversation'}
+                  </button>
+                </div>
+
+                {preparingFiles && (
+                  <div className="px-3 py-2 mb-2 bg-[#e3f2fd] rounded text-[13px] text-[#1565c0]">
+                    {prepareProgress
+                      ? `Preparing documents... (${prepareProgress.current}/${prepareProgress.total}) — ${prepareProgress.fileName}`
+                      : 'Preparing documents...'}
+                  </div>
+                )}
+
+                <div className="border border-[#ddd] rounded p-3 h-120 overflow-y-auto mb-2">
+                  {activeConv.messages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`mb-3 ${m.role === 'user' ? 'text-right' : 'text-left'}`}
+                    >
+                      <div
+                        className={`inline-block px-3 py-2 rounded-lg max-w-[80%] text-left whitespace-pre-wrap ${
+                          m.role === 'user' ? 'bg-[#e3f2fd]' : 'bg-[#f5f5f5]'
+                        }`}
+                      >
+                        {m.content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <form onSubmit={handleSend} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={msgInput}
+                    onChange={(e) => setMsgInput(e.target.value)}
+                    disabled={sending || preparingFiles}
+                    placeholder={
+                      preparingFiles ? 'Preparing documents...' : 'Ask about your documents...'
+                    }
+                    className="flex-1 p-2 border border-[#ddd] rounded"
+                  />
+                  <button
+                    className="bg-black px-4 py-2 rounded"
+                    type="submit"
+                    disabled={sending || preparingFiles || !msgInput.trim()}
+                  >
+                    <Send color="white" />
+                  </button>
+                </form>
               </div>
-              <form onSubmit={handleSend} style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  value={msgInput}
-                  onChange={(e) => setMsgInput(e.target.value)}
-                  disabled={sending || preparingFiles}
-                  placeholder={preparingFiles ? 'Preparing documents...' : 'Ask about your documents...'}
-                  style={{ flex: 1, padding: 8 }}
-                />
-                <button type="submit" disabled={sending || preparingFiles || !msgInput.trim()}>
-                  Send
-                </button>
-              </form>
+            </div>
+          )}
+          {/* Suggestions sidebar — only when a conversation is active */}
+          {activeConv && suggestions.length > 0 && (
+            <div className="w-80">
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <h3 className="font-bold mb-4">Prompt Suggestions</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {suggestions &&
+                    suggestions.map((s) => {
+                      const iconObject = Icons.find((item) => item.label === s.display_name)
+                      const Icon = iconObject?.icon ?? FileText
+                      const iconColor = iconObject?.color ?? 'text-gray-600'
+
+                      return (
+                        <button
+                          key={s.key}
+                          onClick={() => setMsgInput(s.content)}
+                          className="flex flex-col items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-yellow-50 hover:border-yellow-400 transition-colors group"
+                        >
+                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-yellow-100 transition-colors">
+                            <Icon className={`w-4 h-4 ${iconColor}`} />
+                          </div>
+                          <span className="text-xs text-center leading-tight">
+                            {s.display_name}
+                          </span>
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!activeConv && (
+            <div className="flex-1 min-h-0 bg-white rounded-xl border border-gray-200 flex flex-col">
+              <div className="p-4 flex min-h-0 flex-1 flex-col">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-bold text-sm m-0">Chat</h3>
+                  <button type="button" onClick={handleNewConversation} disabled={creatingConv}>
+                    {creatingConv ? 'Creating...' : 'New conversation'}
+                  </button>
+                </div>
+
+                <ul className="list-none p-0 m-0 overflow-y-auto min-h-0">
+                  {conversations.map((c) => (
+                    <li key={c.id} className="py-1.5 border-b border-[#eee]">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenConversation(c.id)}
+                        className="w-full bg-transparent border-0 cursor-pointer text-left p-1"
+                      >
+                        {c.title || `Conversation ${c.created_at.slice(0, 10)}`}
+                      </button>
+                    </li>
+                  ))}
+                  {conversations.length === 0 && (
+                    <p className="text-[#888]">No conversations yet. Upload docs and start one.</p>
+                  )}
+                </ul>
+              </div>
             </div>
           )}
         </div>
-
-        {/* Suggestions sidebar — only when a conversation is active */}
-        {activeConv && suggestions.length > 0 && (
-          <div style={{ flex: '0 0 320px' }}>
-            <h2>Suggestions</h2>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 8,
-              }}
-            >
-              {suggestions.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setMsgInput(s.content)}
-                  style={{
-                    padding: '10px 8px',
-                    fontSize: 13,
-                    border: '1px solid #ddd',
-                    borderRadius: 6,
-                    background: '#fafafa',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  {s.display_name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
-    </div>
+    </Layout>
   )
 }
