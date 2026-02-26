@@ -583,7 +583,7 @@ export default function ClientKBPage() {
               )}
             </div>
           </div>
-          {activeConv && suggestions.length > 0 && (
+          {activeConv && (
             <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col">
               <div className="p-4">
                 <div className="mb-2 flex items-center justify-between">
