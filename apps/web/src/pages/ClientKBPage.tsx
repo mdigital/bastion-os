@@ -177,13 +177,19 @@ export default function ClientKBPage() {
         const form = new FormData()
         form.append('file', file)
 
+        console.log(`[GeminiFiles] Uploading file: ${file.name} (${(file.size / 1024).toFixed(1)} KB, type=${file.type})`)
         const res = await fetch(`${base}/sources`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: form,
         })
-        if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
-        return (await res.json()) as Source
+        if (!res.ok) {
+          console.error(`[GeminiFiles] Upload failed for ${file.name}: HTTP ${res.status}`)
+          throw new Error(`Upload failed: ${res.status}`)
+        }
+        const source = (await res.json()) as Source
+        console.log(`[GeminiFiles] Upload complete: ${file.name} → sourceId=${source.id}`)
+        return source
       }
 
       for (let i = 0; i < fileArray.length; i++) {
@@ -252,15 +258,19 @@ export default function ClientKBPage() {
 
   async function handleDelete(sourceId: string) {
     setError(null)
+    console.log(`[GeminiFiles] Deleting source: ${sourceId}`)
     try {
       await apiFetch(`${base}/sources/${sourceId}`, { method: 'DELETE' })
+      console.log(`[GeminiFiles] Delete complete: ${sourceId} (Gemini file cleanup triggered server-side)`)
       setSources((prev) => prev.filter((s) => s.id !== sourceId))
     } catch (err) {
+      console.error(`[GeminiFiles] Delete failed for ${sourceId}:`, err)
       setError(err instanceof Error ? err.message : 'Delete failed')
     }
   }
 
   async function prepareConversationFiles(convId: string) {
+    console.log(`[GeminiFiles] Prepare files starting for conversation: ${convId}`)
     setPreparingFiles(true)
     setPrepareProgress(null)
     try {
@@ -275,20 +285,25 @@ export default function ClientKBPage() {
       })
 
       if (res.status === 404) {
-        // API doesn't have prepare-files yet — old API handles files inline
+        console.warn(`[GeminiFiles] prepare-files endpoint returned 404 — skipping (old API?)`)
         return
       }
       if (!res.ok || !res.body) {
+        console.error(`[GeminiFiles] prepare-files failed: HTTP ${res.status}, body=${!!res.body}`)
         throw new Error(`Prepare files failed: ${res.status}`)
       }
 
+      console.log(`[GeminiFiles] SSE stream opened for prepare-files`)
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done) {
+          console.log(`[GeminiFiles] SSE stream ended for prepare-files`)
+          break
+        }
         buffer += decoder.decode(value, { stream: true })
 
         // Parse SSE events from buffer
@@ -303,25 +318,45 @@ export default function ClientKBPage() {
             if (line.startsWith('event: ')) eventType = line.slice(7)
             else if (line.startsWith('data: ')) data = line.slice(6)
           }
+
           if (eventType === 'progress' && data) {
             try {
               const progress = JSON.parse(data)
+              console.log(`[GeminiFiles] prepare progress: ${progress.current}/${progress.total} — ${progress.fileName} (status=${progress.status})`)
               setPrepareProgress({
                 current: progress.current,
                 total: progress.total,
                 fileName: progress.fileName,
               })
-            } catch {
-              /* ignore parse errors */
+            } catch (e) {
+              console.warn(`[GeminiFiles] Failed to parse progress event:`, data, e)
             }
+          } else if (eventType === 'ready' && data) {
+            try {
+              const ready = JSON.parse(data)
+              console.log(`[GeminiFiles] Files ready: ${ready.fileCount} files, ${ready.refreshed} refreshed`)
+            } catch (e) {
+              console.warn(`[GeminiFiles] Failed to parse ready event:`, data, e)
+            }
+          } else if (eventType === 'error' && data) {
+            try {
+              const error = JSON.parse(data)
+              console.error(`[GeminiFiles] prepare-files error event:`, error)
+            } catch {
+              console.error(`[GeminiFiles] prepare-files error event (raw):`, data)
+            }
+          } else if (eventType && data) {
+            console.log(`[GeminiFiles] Unknown SSE event: type=${eventType}, data=${data}`)
           }
         }
       }
     } catch (err) {
+      console.error(`[GeminiFiles] prepareConversationFiles failed:`, err)
       setError(err instanceof Error ? err.message : 'Failed to prepare files')
     } finally {
       setPreparingFiles(false)
       setPrepareProgress(null)
+      console.log(`[GeminiFiles] Prepare files finished for conversation: ${convId}`)
     }
   }
 
@@ -341,6 +376,7 @@ export default function ClientKBPage() {
       setConversations((prev) => [...prev, conv])
       setActiveConv({ ...conv, messages: [] })
       // Prepare files in background (non-blocking — files are fresh from upload but this ensures cache)
+      console.log(`[GeminiFiles] New conversation created: ${conv.id}, preparing files for ${sources.length} sources`)
       prepareConversationFiles(conv.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create conversation')
@@ -355,6 +391,7 @@ export default function ClientKBPage() {
       const detail = await apiFetch<ConversationDetail>(`${base}/conversations/${convId}`)
       setActiveConv(detail)
       // Prepare files — verifies cached Gemini URIs and re-uploads stale ones
+      console.log(`[GeminiFiles] Opening existing conversation: ${convId}, ${detail.messages.length} messages`)
       prepareConversationFiles(convId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversation')
@@ -392,6 +429,7 @@ export default function ClientKBPage() {
       } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
+      console.log(`[GeminiFiles] Sending message to conversation: ${activeConv.id}`)
       const res = await fetch(`${base}/conversations/${activeConv.id}/messages`, {
         method: 'POST',
         headers: {
@@ -402,16 +440,22 @@ export default function ClientKBPage() {
       })
 
       if (!res.ok || !res.body) {
+        console.error(`[GeminiFiles] Chat request failed: HTTP ${res.status}, body=${!!res.body}`)
         throw new Error(`Request failed: ${res.status}`)
       }
 
+      console.log(`[GeminiFiles] Chat SSE stream opened`)
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      let chunkCount = 0
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done) {
+          console.log(`[GeminiFiles] Chat SSE stream ended (${chunkCount} delta chunks received)`)
+          break
+        }
         buffer += decoder.decode(value, { stream: true })
 
         const parts = buffer.split('\n\n')
@@ -430,6 +474,7 @@ export default function ClientKBPage() {
           try {
             const parsed = JSON.parse(data)
             if (eventType === 'delta') {
+              chunkCount++
               setActiveConv((prev) => {
                 if (!prev) return prev
                 return {
@@ -440,6 +485,7 @@ export default function ClientKBPage() {
                 }
               })
             } else if (eventType === 'done') {
+              console.log(`[GeminiFiles] Chat complete: messageId=${parsed.id}, contentLength=${parsed.content?.length}`)
               setActiveConv((prev) => {
                 if (!prev) return prev
                 return {
@@ -457,6 +503,7 @@ export default function ClientKBPage() {
                 }
               })
             } else if (eventType === 'error') {
+              console.error(`[GeminiFiles] Chat error event:`, parsed)
               setError(parsed.message || 'Failed to get response')
               // Remove the streaming placeholder
               setActiveConv((prev) => {
@@ -466,13 +513,16 @@ export default function ClientKBPage() {
                   messages: prev.messages.filter((m) => m.id !== 'streaming'),
                 }
               })
+            } else {
+              console.log(`[GeminiFiles] Unknown chat SSE event: type=${eventType}`, parsed)
             }
-          } catch {
-            /* ignore parse errors */
+          } catch (e) {
+            console.warn(`[GeminiFiles] Failed to parse chat SSE data:`, data, e)
           }
         }
       }
     } catch (err) {
+      console.error(`[GeminiFiles] Chat send failed:`, err)
       setError(err instanceof Error ? err.message : 'Failed to send message')
       // Remove the streaming placeholder on network error
       setActiveConv((prev) => {
