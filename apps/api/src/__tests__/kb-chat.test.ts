@@ -29,17 +29,16 @@ const sbMock = vi.hoisted(() => {
 })
 
 const geminiMock = vi.hoisted(() => {
-  const generateContent = vi.fn().mockResolvedValue({ text: 'AI response here' })
-  const upload = vi.fn().mockResolvedValue({ uri: 'https://genai.example.com/files/abc', name: 'files/abc', mimeType: 'application/pdf' })
-  const get = vi.fn().mockResolvedValue({ state: 'ACTIVE' })
-  const del = vi.fn().mockResolvedValue({})
+  // generateContentStream returns an async iterable
+  const generateContentStream = vi.fn().mockResolvedValue({
+    async *[Symbol.asyncIterator]() {
+      yield { text: 'AI response here' }
+    },
+  })
   return {
-    models: { generateContent },
-    files: { upload, get, delete: del },
-    _generateContent: generateContent,
-    _upload: upload,
-    _get: get,
-    _delete: del,
+    models: { generateContentStream },
+    files: { upload: vi.fn(), get: vi.fn(), delete: vi.fn() },
+    _generateContentStream: generateContentStream,
   }
 })
 
@@ -66,14 +65,12 @@ function resetMock() {
   sbMock._download.mockClear()
   sbMock._download.mockResolvedValue({ data: new Blob(['file-content']), error: null })
   sbMock.storage.from.mockClear()
-  geminiMock._generateContent.mockClear()
-  geminiMock._generateContent.mockResolvedValue({ text: 'AI response here' })
-  geminiMock._upload.mockClear()
-  geminiMock._upload.mockResolvedValue({ uri: 'https://genai.example.com/files/abc', name: 'files/abc', mimeType: 'application/pdf' })
-  geminiMock._get.mockClear()
-  geminiMock._get.mockResolvedValue({ state: 'ACTIVE' })
-  geminiMock._delete.mockClear()
-  geminiMock._delete.mockResolvedValue({})
+  geminiMock._generateContentStream.mockClear()
+  geminiMock._generateContentStream.mockResolvedValue({
+    async *[Symbol.asyncIterator]() {
+      yield { text: 'AI response here' }
+    },
+  })
 }
 
 beforeEach(() => resetMock())
@@ -214,70 +211,9 @@ describe('POST /api/kb/clients/:clientId/conversations', () => {
   })
 })
 
-// ─── POST .../messages ──────────────────────────────────────────────────────
+// ─── POST .../messages (SSE streaming) ──────────────────────────────────────
 
 describe('POST /api/kb/clients/:clientId/conversations/:conversationId/messages', () => {
-  it('sends a message using cached file URIs (no upload)', async () => {
-    const userMsg = { id: 'm1', conversation_id: 'conv1', role: 'user', content: 'What is X?' }
-    const assistantMsg = { id: 'm2', conversation_id: 'conv1', role: 'assistant', content: 'AI response here' }
-
-    sbMock.chain._results = [
-      // 1. client lookup
-      { data: { id: 'c1' }, error: null },
-      // 2. conversation lookup
-      { data: { id: 'conv1', client_id: 'c1', source_ids: ['s1'] }, error: null },
-      // 3. insert user message
-      { data: userMsg, error: null },
-      // 4. fetch history
-      { data: [{ role: 'user', content: 'What is X?' }], error: null },
-      // 5. fetch source metadata (with cached gemini_file_uri from prepare-files)
-      { data: [{ id: 's1', file_name: 'doc.pdf', file_path: 'org-1/c1/doc.pdf', file_type: 'application/pdf', gemini_file_uri: 'https://genai.example.com/files/abc' }], error: null },
-      // 6. getPrompt (prompts table lookup — falls back to default)
-      { data: null, error: null },
-      // 7. insert assistant message
-      { data: assistantMsg, error: null },
-    ]
-
-    app = await buildTestApp(registerRoutes, { userRole: 'admin' })
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/kb/clients/c1/conversations/conv1/messages',
-      payload: { content: 'What is X?' },
-    })
-
-    expect(res.statusCode).toBe(201)
-    expect(res.json()).toEqual(assistantMsg)
-    expect(geminiMock._generateContent).toHaveBeenCalledTimes(1)
-    // No upload — message endpoint uses cached URIs from prepare-files
-    expect(geminiMock._upload).not.toHaveBeenCalled()
-  })
-
-  it('returns 422 when Gemini rejects stale URIs', async () => {
-    const userMsg = { id: 'm1', conversation_id: 'conv1', role: 'user', content: 'What is X?' }
-
-    sbMock.chain._results = [
-      { data: { id: 'c1' }, error: null },
-      { data: { id: 'conv1', client_id: 'c1', source_ids: ['s1'] }, error: null },
-      { data: userMsg, error: null },
-      { data: [{ role: 'user', content: 'What is X?' }], error: null },
-      { data: [{ id: 's1', file_name: 'doc.pdf', file_path: 'org-1/c1/doc.pdf', file_type: 'application/pdf', gemini_file_uri: 'https://genai.example.com/files/stale' }], error: null },
-      // getPrompt
-      { data: null, error: null },
-    ]
-
-    geminiMock._generateContent.mockRejectedValueOnce(new Error('File not found'))
-
-    app = await buildTestApp(registerRoutes, { userRole: 'admin' })
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/kb/clients/c1/conversations/conv1/messages',
-      payload: { content: 'What is X?' },
-    })
-
-    expect(res.statusCode).toBe(422)
-    expect(res.json().message).toContain('expired')
-  })
-
   it('returns 400 if content is missing', async () => {
     app = await buildTestApp(registerRoutes, { userRole: 'admin' })
     const res = await app.inject({
@@ -317,6 +253,42 @@ describe('POST /api/kb/clients/:clientId/conversations/:conversationId/messages'
     expect(res.statusCode).toBe(404)
   })
 
+  it('streams a response using digest context', async () => {
+    const userMsg = { id: 'm1', conversation_id: 'conv1', role: 'user', content: 'What is X?' }
+    const assistantMsg = { id: 'm2', conversation_id: 'conv1', role: 'assistant', content: 'AI response here' }
+
+    sbMock.chain._results = [
+      // 1. client lookup
+      { data: { id: 'c1' }, error: null },
+      // 2. conversation lookup
+      { data: { id: 'conv1', client_id: 'c1', source_ids: ['s1'] }, error: null },
+      // 3. insert user message
+      { data: userMsg, error: null },
+      // 4. fetch history
+      { data: [{ role: 'user', content: 'What is X?' }], error: null },
+      // 5. fetch source digests
+      { data: [{ file_name: 'doc.pdf', file_path: 'org-1/c1/doc.pdf', digest_summary: 'A summary', digest_full_text: 'Full text', digest_status: 'ready' }], error: null },
+      // 6. getPrompt (prompts table lookup — falls back to default)
+      { data: null, error: null },
+      // 7. insert assistant message
+      { data: assistantMsg, error: null },
+    ]
+
+    app = await buildTestApp(registerRoutes, { userRole: 'admin' })
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/kb/clients/c1/conversations/conv1/messages',
+      payload: { content: 'What is X?' },
+    })
+
+    // SSE endpoint returns 200 with text/event-stream
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toBe('text/event-stream')
+    expect(res.payload).toContain('event: delta')
+    expect(res.payload).toContain('event: done')
+    expect(geminiMock._generateContentStream).toHaveBeenCalledTimes(1)
+  })
+
   it('works with no source files (empty source_ids)', async () => {
     const userMsg = { id: 'm1', conversation_id: 'conv1', role: 'user', content: 'Hello' }
     const assistantMsg = { id: 'm2', conversation_id: 'conv1', role: 'assistant', content: 'AI response here' }
@@ -326,6 +298,8 @@ describe('POST /api/kb/clients/:clientId/conversations/:conversationId/messages'
       { data: { id: 'conv1', client_id: 'c1', source_ids: [] }, error: null },
       { data: userMsg, error: null },
       { data: [{ role: 'user', content: 'Hello' }], error: null },
+      // getPrompt
+      { data: null, error: null },
       { data: assistantMsg, error: null },
     ]
 
@@ -336,8 +310,8 @@ describe('POST /api/kb/clients/:clientId/conversations/:conversationId/messages'
       payload: { content: 'Hello' },
     })
 
-    expect(res.statusCode).toBe(201)
-    expect(geminiMock._upload).not.toHaveBeenCalled()
-    expect(geminiMock._generateContent).toHaveBeenCalledTimes(1)
+    expect(res.statusCode).toBe(200)
+    expect(res.payload).toContain('event: done')
+    expect(geminiMock._generateContentStream).toHaveBeenCalledTimes(1)
   })
 })

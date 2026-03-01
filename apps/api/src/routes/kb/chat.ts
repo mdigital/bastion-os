@@ -2,7 +2,6 @@ import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../../lib/supabase.js'
 import { gemini } from '../../lib/gemini.js'
 import { getPrompt } from '../../lib/prompts.js'
-import { prepareFiles, type SourceRow } from '../../lib/gemini-files.js'
 
 const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/kb/clients/:clientId/conversations
@@ -126,100 +125,10 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // POST /api/kb/clients/:clientId/conversations/:conversationId/prepare-files
-  // SSE endpoint — streams progress events as files are verified/re-uploaded
-  fastify.post<{ Params: { clientId: string; conversationId: string } }>(
-    '/api/kb/clients/:clientId/conversations/:conversationId/prepare-files',
-    { config: { requiredRoles: ['admin', 'manager', 'user'] } },
-    async (request, reply) => {
-      if (!request.organisationId) {
-        return reply.notFound('User has no organisation')
-      }
-
-      const { clientId, conversationId } = request.params
-
-      // Verify client belongs to user's org
-      const { data: client, error: clientErr } = await supabaseAdmin
-        .from('clients')
-        .select('id')
-        .eq('id', clientId)
-        .eq('organisation_id', request.organisationId)
-        .single()
-
-      if (clientErr || !client) return reply.notFound('Client not found')
-
-      // Fetch conversation
-      const { data: conversation, error: convErr } = await supabaseAdmin
-        .from('kb_conversations')
-        .select('*')
-        .eq('id', conversationId)
-        .eq('client_id', clientId)
-        .single()
-
-      if (convErr || !conversation) return reply.notFound('Conversation not found')
-
-      const sourceIds = conversation.source_ids as string[]
-
-      // Set SSE headers
-      reply.raw.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      })
-
-      function writeSSE(event: string, data: unknown) {
-        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-      }
-
-      if (sourceIds.length === 0) {
-        writeSSE('ready', { fileCount: 0, refreshed: 0 })
-        reply.raw.end()
-        return reply
-      }
-
-      const { data: sources } = await supabaseAdmin
-        .from('client_sources')
-        .select('id, file_name, file_path, file_type, gemini_file_uri, gemini_file_name, gemini_file_uploaded_at')
-        .in('id', sourceIds)
-        .is('deleted_at', null)
-
-      const sourceRows = (sources ?? []) as SourceRow[]
-
-      if (sourceRows.length === 0) {
-        writeSSE('ready', { fileCount: 0, refreshed: 0 })
-        reply.raw.end()
-        return reply
-      }
-
-      let refreshed = 0
-
-      try {
-        const parts = await prepareFiles(
-          sourceRows,
-          supabaseAdmin,
-          gemini,
-          fastify.log,
-          (progress) => {
-            if (progress.status === 'uploading') refreshed++
-            writeSSE('progress', progress)
-          },
-        )
-
-        writeSSE('ready', { fileCount: parts.length, refreshed })
-      } catch (err) {
-        fastify.log.error({ err }, 'prepare-files failed')
-        writeSSE('error', { message: 'Failed to prepare files' })
-      }
-
-      reply.raw.end()
-      return reply
-    },
-  )
-
   // POST /api/kb/clients/:clientId/conversations/:conversationId/messages
   fastify.post<{
     Params: { clientId: string; conversationId: string }
-    Body: { content: string }
+    Body: { content: string; deep_dive?: boolean }
   }>(
     '/api/kb/clients/:clientId/conversations/:conversationId/messages',
     { config: { requiredRoles: ['admin', 'manager', 'user'] } },
@@ -229,7 +138,7 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const { clientId, conversationId } = request.params
-      const { content } = request.body
+      const { content, deep_dive } = request.body
 
       if (!content) return reply.badRequest('content is required')
 
@@ -273,46 +182,36 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
 
-      // Build file parts from cached URIs (prepare-files should have been called first)
+      // Build digest-based context from sources
       const sourceIds = conversation.source_ids as string[]
-      type CachedSource = { id: string; file_name: string | null; file_path: string; file_type: string | null; gemini_file_uri: string | null }
-
-      let fileParts: Array<{ fileData: { fileUri: string; mimeType: string } }> = []
-      let sourceNames: string[] = []
+      let documentContext = ''
 
       if (sourceIds.length > 0) {
-        const { data } = await supabaseAdmin
+        const { data: sources } = await supabaseAdmin
           .from('client_sources')
-          .select('id, file_name, file_path, file_type, gemini_file_uri')
+          .select('file_name, file_path, digest_summary, digest_full_text, digest_status')
           .in('id', sourceIds)
           .is('deleted_at', null)
 
-        const sources = (data ?? []) as CachedSource[]
-        sourceNames = sources.map((s) => s.file_name || s.file_path.split('/').pop() || 'unknown')
+        const readySources = (sources ?? []).filter(
+          (s: { digest_status: string }) => s.digest_status === 'ready',
+        )
 
-        // Use only sources with cached URIs — no inline uploads
-        fileParts = sources
-          .filter((s) => s.gemini_file_uri)
-          .map((s) => ({
-            fileData: {
-              fileUri: s.gemini_file_uri!,
-              mimeType: s.file_type || 'application/octet-stream',
+        if (readySources.length > 0) {
+          const sections = readySources.map(
+            (s: { file_name: string | null; file_path: string; digest_summary: string | null; digest_full_text: string | null }, i: number) => {
+              const name = s.file_name || s.file_path.split('/').pop() || 'unknown'
+              const digestText = deep_dive ? s.digest_full_text : s.digest_summary
+              return `## Document ${i + 1}: ${name}\n\n${digestText || '(no content extracted)'}`
             },
-          }))
+          )
+          documentContext = sections.join('\n\n---\n\n')
+        }
 
-        fastify.log.info({ fileCount: fileParts.length, sourceNames }, 'KB chat: using cached file parts')
-      }
-
-      // Build a dedicated file context message so Gemini treats files as grounding context
-      function buildFileMessage(parts: typeof fileParts) {
-        if (parts.length === 0) return []
-        return [{
-          role: 'user' as const,
-          parts: [
-            { text: `Reference documents:\n${sourceNames.map((n, i) => `${i + 1}. ${n}`).join('\n')}` },
-            ...parts,
-          ],
-        }]
+        fastify.log.info(
+          { sourceCount: readySources.length, deep_dive: !!deep_dive },
+          'KB chat: using digest context',
+        )
       }
 
       // Build conversation history for Gemini
@@ -321,10 +220,21 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         parts: [{ text: msg.content }],
       }))
 
-      const systemInstruction = await getPrompt(
-        'kb-chat-system',
-        'You are a knowledge base assistant. Answer questions based on the provided documents. If you cannot find the answer in the documents, say so clearly.',
-      )
+      // Select system prompt based on mode
+      const systemInstruction = deep_dive
+        ? await getPrompt(
+            'kb-chat-system-deep',
+            'You are a knowledge base assistant. You have the full extracted text of the client documents. Answer questions thoroughly using all available detail. If you cannot find the answer in the documents, say so clearly.',
+          )
+        : await getPrompt(
+            'kb-chat-system',
+            'You are a knowledge base assistant. You have summaries of the client documents. Answer questions based on these summaries. If you need more detail than the summaries provide, suggest the user try "Deep dive" mode. If you cannot find the answer, say so clearly.',
+          )
+
+      // Build document context message
+      const contextMessages = documentContext
+        ? [{ role: 'user' as const, parts: [{ text: `Here are the client documents:\n\n${documentContext}` }] }]
+        : []
 
       // Switch to SSE for streaming response
       reply.raw.writeHead(200, {
@@ -344,7 +254,7 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
           model: 'gemini-2.0-flash',
           config: { systemInstruction },
           contents: [
-            ...buildFileMessage(fileParts),
+            ...contextMessages,
             ...historyMessages,
             { role: 'user', parts: [{ text: content }] },
           ],
@@ -362,7 +272,7 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
         const status = (err as { status?: number }).status
         const message = status === 429
           ? 'AI service is busy. Please wait a moment and try again.'
-          : 'Document files may have expired. Please reopen the conversation to refresh them.'
+          : 'Failed to generate a response. Please try again.'
         writeSSE('error', { message })
         reply.raw.end()
         return reply

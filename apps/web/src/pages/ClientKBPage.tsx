@@ -5,7 +5,7 @@ import { apiFetch } from '../lib/api.ts'
 import { supabase } from '../lib/supabase.ts'
 import Layout from '../components/Layout.tsx'
 // prettier-ignore
-import { ArrowLeft, BarChart3, FileText, Network, PieChart, Presentation, Send, Sparkles, X, Zap } from 'lucide-react'
+import { ArrowLeft, BarChart3, FileText, Loader2, Network, PieChart, Presentation, RefreshCw, Send, Sparkles, X, Zap } from 'lucide-react'
 
 const Icons = [
   {
@@ -55,6 +55,7 @@ interface Source {
   file_name: string
   file_size: number
   created_at: string
+  digest_status: 'pending' | 'processing' | 'ready' | 'failed'
 }
 
 interface Conversation {
@@ -106,14 +107,6 @@ export default function ClientKBPage() {
   const [sending, setSending] = useState(false)
   const [creatingConv, setCreatingConv] = useState(false)
 
-  // File preparation state
-  const [preparingFiles, setPreparingFiles] = useState(false)
-  const [prepareProgress, setPrepareProgress] = useState<{
-    current: number
-    total: number
-    fileName: string
-  } | null>(null)
-
   // Suggestions state
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [, setError] = useState<string | null>(null)
@@ -154,6 +147,24 @@ export default function ClientKBPage() {
     void loadClientName()
   }, [clientId])
 
+  // Poll for digest status while any source is pending/processing
+  useEffect(() => {
+    const hasPending = sources.some(
+      (s) => s.digest_status === 'pending' || s.digest_status === 'processing',
+    )
+    if (!hasPending) return
+
+    const interval = setInterval(() => {
+      apiFetch<Source[]>(`${base}/sources`)
+        .then(setSources)
+        .catch(() => {})
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [sources, base])
+
+  const allDigestsReady = sources.length > 0 && sources.every((s) => s.digest_status === 'ready')
+
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
       const fileArray = Array.from(files)
@@ -177,19 +188,15 @@ export default function ClientKBPage() {
         const form = new FormData()
         form.append('file', file)
 
-        console.log(`[GeminiFiles] Uploading file: ${file.name} (${(file.size / 1024).toFixed(1)} KB, type=${file.type})`)
         const res = await fetch(`${base}/sources`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: form,
         })
         if (!res.ok) {
-          console.error(`[GeminiFiles] Upload failed for ${file.name}: HTTP ${res.status}`)
           throw new Error(`Upload failed: ${res.status}`)
         }
-        const source = (await res.json()) as Source
-        console.log(`[GeminiFiles] Upload complete: ${file.name} → sourceId=${source.id}`)
-        return source
+        return (await res.json()) as Source
       }
 
       for (let i = 0; i < fileArray.length; i++) {
@@ -258,105 +265,24 @@ export default function ClientKBPage() {
 
   async function handleDelete(sourceId: string) {
     setError(null)
-    console.log(`[GeminiFiles] Deleting source: ${sourceId}`)
     try {
       await apiFetch(`${base}/sources/${sourceId}`, { method: 'DELETE' })
-      console.log(`[GeminiFiles] Delete complete: ${sourceId} (Gemini file cleanup triggered server-side)`)
       setSources((prev) => prev.filter((s) => s.id !== sourceId))
     } catch (err) {
-      console.error(`[GeminiFiles] Delete failed for ${sourceId}:`, err)
       setError(err instanceof Error ? err.message : 'Delete failed')
     }
   }
 
-  async function prepareConversationFiles(convId: string) {
-    console.log(`[GeminiFiles] Prepare files starting for conversation: ${convId}`)
-    setPreparingFiles(true)
-    setPrepareProgress(null)
+  async function handleRetryDigest(sourceId: string) {
+    setError(null)
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
-
-      const res = await fetch(`${base}/conversations/${convId}/prepare-files`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-
-      if (res.status === 404) {
-        console.warn(`[GeminiFiles] prepare-files endpoint returned 404 — skipping (old API?)`)
-        return
-      }
-      if (!res.ok || !res.body) {
-        console.error(`[GeminiFiles] prepare-files failed: HTTP ${res.status}, body=${!!res.body}`)
-        throw new Error(`Prepare files failed: ${res.status}`)
-      }
-
-      console.log(`[GeminiFiles] SSE stream opened for prepare-files`)
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          console.log(`[GeminiFiles] SSE stream ended for prepare-files`)
-          break
-        }
-        buffer += decoder.decode(value, { stream: true })
-
-        // Parse SSE events from buffer
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop() || ''
-
-        for (const part of parts) {
-          const lines = part.split('\n')
-          let eventType = ''
-          let data = ''
-          for (const line of lines) {
-            if (line.startsWith('event: ')) eventType = line.slice(7)
-            else if (line.startsWith('data: ')) data = line.slice(6)
-          }
-
-          if (eventType === 'progress' && data) {
-            try {
-              const progress = JSON.parse(data)
-              console.log(`[GeminiFiles] prepare progress: ${progress.current}/${progress.total} — ${progress.fileName} (status=${progress.status})`)
-              setPrepareProgress({
-                current: progress.current,
-                total: progress.total,
-                fileName: progress.fileName,
-              })
-            } catch (e) {
-              console.warn(`[GeminiFiles] Failed to parse progress event:`, data, e)
-            }
-          } else if (eventType === 'ready' && data) {
-            try {
-              const ready = JSON.parse(data)
-              console.log(`[GeminiFiles] Files ready: ${ready.fileCount} files, ${ready.refreshed} refreshed`)
-            } catch (e) {
-              console.warn(`[GeminiFiles] Failed to parse ready event:`, data, e)
-            }
-          } else if (eventType === 'error' && data) {
-            try {
-              const error = JSON.parse(data)
-              console.error(`[GeminiFiles] prepare-files error event:`, error)
-            } catch {
-              console.error(`[GeminiFiles] prepare-files error event (raw):`, data)
-            }
-          } else if (eventType && data) {
-            console.log(`[GeminiFiles] Unknown SSE event: type=${eventType}, data=${data}`)
-          }
-        }
-      }
+      await apiFetch(`${base}/sources/${sourceId}/retry-digest`, { method: 'POST' })
+      // Optimistically set to processing
+      setSources((prev) =>
+        prev.map((s) => (s.id === sourceId ? { ...s, digest_status: 'processing' as const } : s)),
+      )
     } catch (err) {
-      console.error(`[GeminiFiles] prepareConversationFiles failed:`, err)
-      setError(err instanceof Error ? err.message : 'Failed to prepare files')
-    } finally {
-      setPreparingFiles(false)
-      setPrepareProgress(null)
-      console.log(`[GeminiFiles] Prepare files finished for conversation: ${convId}`)
+      setError(err instanceof Error ? err.message : 'Retry failed')
     }
   }
 
@@ -375,9 +301,6 @@ export default function ClientKBPage() {
       })
       setConversations((prev) => [...prev, conv])
       setActiveConv({ ...conv, messages: [] })
-      // Prepare files in background (non-blocking — files are fresh from upload but this ensures cache)
-      console.log(`[GeminiFiles] New conversation created: ${conv.id}, preparing files for ${sources.length} sources`)
-      prepareConversationFiles(conv.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create conversation')
     } finally {
@@ -390,22 +313,18 @@ export default function ClientKBPage() {
     try {
       const detail = await apiFetch<ConversationDetail>(`${base}/conversations/${convId}`)
       setActiveConv(detail)
-      // Prepare files — verifies cached Gemini URIs and re-uploads stale ones
-      console.log(`[GeminiFiles] Opening existing conversation: ${convId}, ${detail.messages.length} messages`)
-      prepareConversationFiles(convId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversation')
     }
   }
 
-  const handleSend: SubmitEventHandler<HTMLFormElement> = async (e) => {
-    e.preventDefault()
-    if (!activeConv || !msgInput.trim()) return
+  async function sendMessage(messageContent: string, deepDive: boolean = false) {
+    if (!activeConv || !messageContent.trim()) return
 
     const userMsg: Message = {
       id: `temp-${Date.now()}`,
       role: 'user',
-      content: msgInput.trim(),
+      content: messageContent.trim(),
       created_at: new Date().toISOString(),
     }
 
@@ -416,9 +335,16 @@ export default function ClientKBPage() {
       created_at: new Date().toISOString(),
     }
 
-    setActiveConv((prev) =>
-      prev ? { ...prev, messages: [...prev.messages, userMsg, streamingMsg] } : prev,
-    )
+    // Only add the user message to the UI if this is not a deep-dive re-send
+    if (!deepDive) {
+      setActiveConv((prev) =>
+        prev ? { ...prev, messages: [...prev.messages, userMsg, streamingMsg] } : prev,
+      )
+    } else {
+      setActiveConv((prev) =>
+        prev ? { ...prev, messages: [...prev.messages, streamingMsg] } : prev,
+      )
+    }
     setMsgInput('')
     setSending(true)
     setError(null)
@@ -429,33 +355,26 @@ export default function ClientKBPage() {
       } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
-      console.log(`[GeminiFiles] Sending message to conversation: ${activeConv.id}`)
       const res = await fetch(`${base}/conversations/${activeConv.id}/messages`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content: userMsg.content }),
+        body: JSON.stringify({ content: messageContent.trim(), deep_dive: deepDive }),
       })
 
       if (!res.ok || !res.body) {
-        console.error(`[GeminiFiles] Chat request failed: HTTP ${res.status}, body=${!!res.body}`)
         throw new Error(`Request failed: ${res.status}`)
       }
 
-      console.log(`[GeminiFiles] Chat SSE stream opened`)
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let chunkCount = 0
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) {
-          console.log(`[GeminiFiles] Chat SSE stream ended (${chunkCount} delta chunks received)`)
-          break
-        }
+        if (done) break
         buffer += decoder.decode(value, { stream: true })
 
         const parts = buffer.split('\n\n')
@@ -474,7 +393,6 @@ export default function ClientKBPage() {
           try {
             const parsed = JSON.parse(data)
             if (eventType === 'delta') {
-              chunkCount++
               setActiveConv((prev) => {
                 if (!prev) return prev
                 return {
@@ -485,7 +403,6 @@ export default function ClientKBPage() {
                 }
               })
             } else if (eventType === 'done') {
-              console.log(`[GeminiFiles] Chat complete: messageId=${parsed.id}, contentLength=${parsed.content?.length}`)
               setActiveConv((prev) => {
                 if (!prev) return prev
                 return {
@@ -503,9 +420,7 @@ export default function ClientKBPage() {
                 }
               })
             } else if (eventType === 'error') {
-              console.error(`[GeminiFiles] Chat error event:`, parsed)
               setError(parsed.message || 'Failed to get response')
-              // Remove the streaming placeholder
               setActiveConv((prev) => {
                 if (!prev) return prev
                 return {
@@ -513,18 +428,14 @@ export default function ClientKBPage() {
                   messages: prev.messages.filter((m) => m.id !== 'streaming'),
                 }
               })
-            } else {
-              console.log(`[GeminiFiles] Unknown chat SSE event: type=${eventType}`, parsed)
             }
-          } catch (e) {
-            console.warn(`[GeminiFiles] Failed to parse chat SSE data:`, data, e)
+          } catch {
+            // Ignore parse errors
           }
         }
       }
     } catch (err) {
-      console.error(`[GeminiFiles] Chat send failed:`, err)
       setError(err instanceof Error ? err.message : 'Failed to send message')
-      // Remove the streaming placeholder on network error
       setActiveConv((prev) => {
         if (!prev) return prev
         return {
@@ -537,7 +448,29 @@ export default function ClientKBPage() {
     }
   }
 
+  const handleSend: SubmitEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault()
+    await sendMessage(msgInput)
+  }
+
+  function handleDeepDive() {
+    if (!activeConv) return
+    // Find the last user message
+    const lastUserMsg = [...activeConv.messages].reverse().find((m) => m.role === 'user')
+    if (lastUserMsg) {
+      sendMessage(lastUserMsg.content, true)
+    }
+  }
+
   const isUploading = uploadingFiles.some((u) => u.status === 'uploading')
+  const chatDisabled = sending || !allDigestsReady
+
+  // Check if the last message is from the assistant (and not streaming) to show deep-dive button
+  const lastMessage = activeConv?.messages[activeConv.messages.length - 1]
+  const showDeepDive =
+    lastMessage?.role === 'assistant' &&
+    lastMessage.id !== 'streaming' &&
+    !sending
 
   return (
     <Layout>
@@ -616,9 +549,29 @@ export default function ClientKBPage() {
                     key={source.id}
                     className="flex items-center gap-2 px-0 py-2 text-sm hover:bg-gray-50 rounded-lg transition-colors group cursor-pointer"
                   >
-                    <div className="w-4 h-4 flex items-center justify-center cursor-pointer"></div>
+                    {/* Digest status indicator */}
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                      {(source.digest_status === 'pending' || source.digest_status === 'processing') && (
+                        <Loader2 className="w-3 h-3 text-yellow-500 animate-spin" />
+                      )}
+                      {source.digest_status === 'ready' && (
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                      )}
+                      {source.digest_status === 'failed' && (
+                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                      )}
+                    </div>
                     <FileText className="w-4 h-4 text-red-500 shrink-0" />
                     <span className="truncate text-xs flex-1">{source.file_name}</span>
+                    {source.digest_status === 'failed' && (
+                      <button
+                        className="p-1 hover:bg-yellow-50 rounded"
+                        onClick={() => handleRetryDigest(source.id)}
+                        title="Retry digest"
+                      >
+                        <RefreshCw className="w-3 h-3 text-yellow-600" />
+                      </button>
+                    )}
                     <button
                       className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
                       onClick={() => handleDelete(source.id)}
@@ -655,14 +608,6 @@ export default function ClientKBPage() {
                   </button>
                 </div>
 
-                {preparingFiles && (
-                  <div className="px-3 py-2 mb-2 bg-[#e3f2fd] rounded text-[13px] text-[#1565c0]">
-                    {prepareProgress
-                      ? `Preparing documents... (${prepareProgress.current}/${prepareProgress.total}) — ${prepareProgress.fileName}`
-                      : 'Preparing documents...'}
-                  </div>
-                )}
-
                 <div className="border border-[#ddd] rounded p-3 h-120 overflow-y-auto mb-2">
                   {activeConv.messages.map((m) => (
                     <div
@@ -678,6 +623,17 @@ export default function ClientKBPage() {
                       </div>
                     </div>
                   ))}
+                  {showDeepDive && (
+                    <div className="text-left mt-1 mb-3">
+                      <button
+                        type="button"
+                        onClick={handleDeepDive}
+                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                      >
+                        Deep dive with full documents
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <form onSubmit={handleSend} className="flex gap-2">
@@ -685,16 +641,18 @@ export default function ClientKBPage() {
                     type="text"
                     value={msgInput}
                     onChange={(e) => setMsgInput(e.target.value)}
-                    disabled={sending || preparingFiles}
+                    disabled={chatDisabled}
                     placeholder={
-                      preparingFiles ? 'Preparing documents...' : 'Ask about your documents...'
+                      !allDigestsReady
+                        ? 'Documents are being processed...'
+                        : 'Ask about your documents...'
                     }
                     className="flex-1 p-2 border border-[#ddd] rounded"
                   />
                   <button
                     className="bg-black hover:bg-zinc-800 transition-colors px-4 py-2 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     type="submit"
-                    disabled={sending || preparingFiles || !msgInput.trim()}
+                    disabled={chatDisabled || !msgInput.trim()}
                   >
                     <Send color="white" />
                   </button>

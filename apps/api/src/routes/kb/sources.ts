@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../../lib/supabase.js'
-import { gemini } from '../../lib/gemini.js'
+import { generateDigest } from '../../lib/digest.js'
 
 const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/kb/clients/:clientId/sources
@@ -75,25 +75,7 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (uploadErr) return reply.internalServerError(uploadErr.message)
 
-      // Upload to Gemini Files API (non-fatal — will be retried via prepare-files)
-      let geminiFileUri: string | null = null
-      let geminiFileName: string | null = null
-      let geminiFileUploadedAt: string | null = null
-      try {
-        const geminiFile = await gemini.files.upload({
-          file: new Blob([buffer], { type: file.mimetype || 'application/octet-stream' }),
-          config: { mimeType: file.mimetype || 'application/octet-stream' },
-        })
-        if (geminiFile.uri) {
-          geminiFileUri = geminiFile.uri
-          geminiFileName = geminiFile.name ?? null
-          geminiFileUploadedAt = new Date().toISOString()
-        }
-      } catch (err) {
-        fastify.log.warn({ err }, 'Gemini file upload failed at source creation — will retry via prepare-files')
-      }
-
-      // Insert metadata row
+      // Insert metadata row (digest_status defaults to 'pending')
       const { data, error } = await supabaseAdmin
         .from('client_sources')
         .insert({
@@ -103,14 +85,23 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
           file_type: file.mimetype,
           file_size: buffer.length,
           uploaded_by: request.userId,
-          gemini_file_uri: geminiFileUri,
-          gemini_file_name: geminiFileName,
-          gemini_file_uploaded_at: geminiFileUploadedAt,
         })
         .select()
         .single()
 
       if (error) return reply.internalServerError(error.message)
+
+      // Fire-and-forget: generate digest in background
+      generateDigest(
+        data.id,
+        buffer,
+        file.mimetype || 'application/octet-stream',
+        file.filename,
+        fastify.log,
+      ).catch((err) => {
+        fastify.log.error({ err, sourceId: data.id }, 'Background digest generation threw')
+      })
+
       return reply.code(201).send(data)
     },
   )
@@ -136,15 +127,6 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (clientErr || !client) return reply.notFound('Client not found')
 
-      // Fetch source to get gemini_file_name before soft-deleting
-      const { data: source } = await supabaseAdmin
-        .from('client_sources')
-        .select('gemini_file_name')
-        .eq('id', sourceId)
-        .eq('client_id', clientId)
-        .is('deleted_at', null)
-        .single()
-
       // Soft-delete by setting deleted_at
       const { data, error } = await supabaseAdmin
         .from('client_sources')
@@ -158,16 +140,66 @@ const kbSourceRoutes: FastifyPluginAsync = async (fastify) => {
       if (error) return reply.internalServerError(error.message)
       if (!data) return reply.notFound('Source not found')
 
-      // Clean up Gemini file (non-fatal)
-      if (source?.gemini_file_name) {
-        try {
-          await gemini.files.delete({ name: source.gemini_file_name })
-        } catch (err) {
-          fastify.log.warn({ err, sourceId }, 'Failed to delete Gemini file — may already be expired')
-        }
+      return reply.code(204).send()
+    },
+  )
+
+  // POST /api/kb/clients/:clientId/sources/:sourceId/retry-digest
+  fastify.post<{ Params: { clientId: string; sourceId: string } }>(
+    '/api/kb/clients/:clientId/sources/:sourceId/retry-digest',
+    { config: { requiredRoles: ['admin', 'manager'] } },
+    async (request, reply) => {
+      if (!request.organisationId) {
+        return reply.notFound('User has no organisation')
       }
 
-      return reply.code(204).send()
+      const { clientId, sourceId } = request.params
+
+      // Verify client belongs to user's org
+      const { data: client, error: clientErr } = await supabaseAdmin
+        .from('clients')
+        .select('id')
+        .eq('id', clientId)
+        .eq('organisation_id', request.organisationId)
+        .single()
+
+      if (clientErr || !client) return reply.notFound('Client not found')
+
+      // Fetch the source
+      const { data: source, error: sourceErr } = await supabaseAdmin
+        .from('client_sources')
+        .select('id, file_name, file_path, file_type')
+        .eq('id', sourceId)
+        .eq('client_id', clientId)
+        .is('deleted_at', null)
+        .single()
+
+      if (sourceErr || !source) return reply.notFound('Source not found')
+
+      // Download file from Supabase Storage
+      const { data: fileData, error: downloadErr } = await supabaseAdmin.storage
+        .from('client-documents')
+        .download(source.file_path)
+
+      if (downloadErr || !fileData) {
+        return reply.internalServerError(`Failed to download file: ${downloadErr?.message}`)
+      }
+
+      const arrayBuffer = await fileData.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+
+      // Fire-and-forget: re-generate digest
+      generateDigest(
+        source.id,
+        buffer,
+        source.file_type || 'application/octet-stream',
+        source.file_name || 'unknown',
+        fastify.log,
+      ).catch((err) => {
+        fastify.log.error({ err, sourceId: source.id }, 'Background digest retry threw')
+      })
+
+      return reply.code(202).send({ message: 'Digest generation restarted' })
     },
   )
 }
