@@ -563,11 +563,11 @@ export default function ClientKBPage() {
                     </div>
                     <FileText className="w-4 h-4 text-red-500 shrink-0" />
                     <span className="truncate text-xs flex-1">{source.file_name}</span>
-                    {source.digest_status === 'failed' && (
+                    {(source.digest_status === 'failed' || source.digest_status === 'pending') && (
                       <button
                         className="p-1 hover:bg-yellow-50 rounded"
                         onClick={() => handleRetryDigest(source.id)}
-                        title="Retry digest"
+                        title={source.digest_status === 'pending' ? 'Generate digest' : 'Retry digest'}
                       >
                         <RefreshCw className="w-3 h-3 text-yellow-600" />
                       </button>
