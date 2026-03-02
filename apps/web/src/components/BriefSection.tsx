@@ -3,7 +3,6 @@ import {
   Lightbulb,
   HelpCircle,
   Copy,
-  ExternalLink,
   Check,
   MessageSquare,
   CheckCircle,
@@ -15,7 +14,7 @@ interface BriefSectionProps {
   title: string
   content: string
   missing: string[]
-  enhancements: Array<{ text: string; source: string }>
+  enhancements: string[]
   questions: string[]
   onContentChange: (content: string) => void
   approverComment?: { comment: string; approverName: string; actioned: boolean }
@@ -165,20 +164,13 @@ export function BriefSection({
                 <h4 className="text-sm">Suggested Enhancements</h4>
               </div>
               {enhancements.length > 0 ? (
-                <ul className="space-y-3">
+                <ul className="space-y-2">
                   {enhancements.map((item, idx) => (
-                    <li key={idx} className="text-sm text-gray-700">
-                      <div className="pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-yellow-400">
-                        {item.text}
-                      </div>
-                      <a
-                        href="#"
-                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1 pl-4"
-                        onClick={(e) => e.preventDefault()}
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        Source: {item.source}
-                      </a>
+                    <li
+                      key={idx}
+                      className="text-sm text-gray-700 pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-yellow-400"
+                    >
+                      {item}
                     </li>
                   ))}
                 </ul>

@@ -37,6 +37,26 @@ export default function AdminPage() {
         >
           Prompts
         </NavLink>
+        <NavLink
+          to="/admin/practices"
+          style={({ isActive }) => ({
+            fontWeight: isActive ? 'bold' : 'normal',
+            textDecoration: 'none',
+            color: isActive ? '#000' : '#555',
+          })}
+        >
+          Practices
+        </NavLink>
+        <NavLink
+          to="/admin/practice-templates"
+          style={({ isActive }) => ({
+            fontWeight: isActive ? 'bold' : 'normal',
+            textDecoration: 'none',
+            color: isActive ? '#000' : '#555',
+          })}
+        >
+          Practice Templates
+        </NavLink>
       </nav>
 
       <Outlet />

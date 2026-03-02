@@ -1,5 +1,6 @@
-import { Search, Plus, FolderOpen } from 'lucide-react'
+import { Search, Plus, FolderOpen, FileText } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import AddClientModal from './AddClientModal'
 
 interface Client {
@@ -106,9 +107,19 @@ export function KnowledgeBaseClients({
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-gray-500">
-                {client.source_count} {client.source_count === 1 ? 'source' : 'sources'}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  {client.source_count} {client.source_count === 1 ? 'source' : 'sources'}
+                </p>
+                <Link
+                  to={`/clients/${client.id}/briefs/new`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 rounded-lg bg-yellow-400 px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-yellow-500"
+                >
+                  <FileText className="h-3 w-3" />
+                  New Brief
+                </Link>
+              </div>
             </div>
           ))}
         </div>

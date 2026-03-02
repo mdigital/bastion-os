@@ -18,6 +18,8 @@ import kbSourceRoutes from './routes/kb/sources.js'
 import kbChatRoutes from './routes/kb/chat.js'
 import kbSuggestionRoutes from './routes/kb/suggestions.js'
 import promptRoutes from './routes/admin/prompts.js'
+import briefRoutes from './routes/briefs.js'
+import briefExpandRoutes from './routes/brief-expand.js'
 import checkEmailRoute from './routes/auth/check-email.js'
 
 export async function buildApp() {
@@ -61,6 +63,8 @@ export async function buildApp() {
   await app.register(kbChatRoutes)
   await app.register(kbSuggestionRoutes)
 
+  await app.register(briefRoutes)
+  await app.register(briefExpandRoutes)
   await app.register(promptRoutes)
   await app.register(checkEmailRoute)
 

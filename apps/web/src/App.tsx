@@ -10,6 +10,9 @@ import HomePage from './pages/HomePage.tsx'
 import ResetPasswordPage from './pages/ResetPasswordPage.tsx'
 import AdminPage from './pages/AdminPage.tsx'
 import PromptsPage from './pages/PromptsPage.tsx'
+import PracticesPage from './pages/PracticesPage.tsx'
+import PracticeTemplatesPage from './pages/PracticeTemplatesPage.tsx'
+import BriefCreatePage from './pages/BriefCreatePage.tsx'
 
 function App() {
   return (
@@ -37,6 +40,14 @@ function App() {
               }
             />
             <Route
+              path="/clients/:clientId/briefs/new"
+              element={
+                <ProtectedRoute>
+                  <BriefCreatePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/clients/:clientId"
               element={
                 <ProtectedRoute>
@@ -54,6 +65,8 @@ function App() {
             >
               <Route index element={<Navigate to="prompts" replace />} />
               <Route path="prompts" element={<PromptsPage />} />
+              <Route path="practices" element={<PracticesPage />} />
+              <Route path="practice-templates" element={<PracticeTemplatesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

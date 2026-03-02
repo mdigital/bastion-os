@@ -28,7 +28,23 @@ export default function HomePage() {
   const [currentStep, setCurrentStep] = useState<Step>('upload')
   const { currentView, setCurrentView } = useAppState()
   const [, setUploadedFile] = useState<File | null>(null)
-  const [leadDepartment, setLeadDepartment] = useState('Digital')
+  const mockPractices = [
+    { id: 'creative', name: 'Creative' },
+    { id: 'design', name: 'Design' },
+    { id: 'social', name: 'Social' },
+    { id: 'influencer', name: 'Influencer' },
+    { id: 'earned-pr', name: 'Earned PR' },
+    { id: 'crisis', name: 'Crisis and Corporate Communications' },
+    { id: 'partnership', name: 'Partnership' },
+    { id: 'experiential', name: 'Experiential' },
+    { id: 'insights', name: 'Insights' },
+    { id: 'media', name: 'Media Planning and Buying' },
+    { id: 'advisory', name: 'Advisory (Digital)' },
+    { id: 'analytics', name: 'Analytics (Digital)' },
+    { id: 'automation', name: 'Automation (Digital)' },
+    { id: 'activation', name: 'Activation (Digital)' },
+  ]
+  const [selectedPracticeId, setSelectedPracticeId] = useState('advisory')
   const [supportingDepartments, setSupportingDepartments] = useState(['Social', 'Creative', 'PR'])
   const [showComparison] = useState(false)
   const [approverComments, setApproverComments] = useState<{
@@ -124,10 +140,10 @@ export default function HomePage() {
             )}
             {currentStep === 'triage' && (
               <DepartmentTriageStep
-                leadDepartment={leadDepartment}
+                practices={mockPractices}
+                selectedPracticeId={selectedPracticeId}
                 rationale="This campaign requires a digital-first approach given the target audience of Millennials and Gen Z who are primarily reached through online channels. The brief emphasizes social media engagement and digital advertising as key components. Digital should lead the strategy with Social providing content expertise, Creative developing the brand narrative, and PR managing reputation and thought leadership aspects."
-                onLeadDepartmentChange={setLeadDepartment}
-                onSupportingDepartmentsChange={setSupportingDepartments}
+                onPracticeSelect={setSelectedPracticeId}
                 onNext={() => setCurrentStep('sections')}
                 onBack={() => setCurrentStep('keyInfo')}
               />
@@ -136,8 +152,7 @@ export default function HomePage() {
               <BriefSectionsStep
                 onKeyInfoChange={handleKeyInfoEdit}
                 keyInfo={keyInfo}
-                onLeadDepartmentChange={setLeadDepartment}
-                leadDepartment={leadDepartment}
+                leadDepartment={mockPractices.find((p) => p.id === selectedPracticeId)?.name ?? ''}
                 sections={sections}
                 onSectionUpdate={handleSectionUpdate}
                 approverComments={approverComments}

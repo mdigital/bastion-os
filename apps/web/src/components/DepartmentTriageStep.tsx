@@ -1,29 +1,28 @@
 import { ArrowLeft, CheckCircle2, Users } from 'lucide-react'
 
+interface Practice {
+  id: string
+  name: string
+}
+
 interface DepartmentTriageStepProps {
-  leadDepartment: string
+  practices: Practice[]
+  selectedPracticeId: string | null
   rationale: string
-  onLeadDepartmentChange: (dept: string) => void
-  onSupportingDepartmentsChange: (depts: string[]) => void
+  onPracticeSelect: (practiceId: string) => void
   onNext: () => void
   onBack: () => void
 }
 
-// prettier-ignore
-const practices = ['Creative', 'Design', 'Social', 'Influencer', 'Earned PR', 'Crisis and Corporate Communications', 'Partnership', 'Experiential', 'Insights', 'Media Planning and Buying', 'Advisory (Digital)', 'Analytics (Digital)', 'Automation (Digital)', 'Activation (Digital)'];
-
 export default function DepartmentTriageStep({
-  leadDepartment,
+  practices,
+  selectedPracticeId,
   rationale,
-  onLeadDepartmentChange,
-  onSupportingDepartmentsChange,
+  onPracticeSelect,
   onNext,
   onBack,
 }: DepartmentTriageStepProps) {
-  const handlePracticeSelect = (dept: string) => {
-    onLeadDepartmentChange(dept)
-    onSupportingDepartmentsChange([])
-  }
+  const selectedPractice = practices.find((p) => p.id === selectedPracticeId)
 
   return (
     <div className="max-w-screen-2xl mx-auto px-8 py-12">
@@ -47,12 +46,12 @@ export default function DepartmentTriageStep({
               </p>
             </div>
             <div className="space-y-3">
-              {practices.map((dept) => {
-                const isSelected = dept === leadDepartment
+              {practices.map((practice) => {
+                const isSelected = practice.id === selectedPracticeId
                 return (
                   <div
-                    key={dept}
-                    onClick={() => handlePracticeSelect(dept)}
+                    key={practice.id}
+                    onClick={() => onPracticeSelect(practice.id)}
                     className={`rounded-lg border-2 p-4 cursor-pointer transition-all hover:shadow-md ${
                       isSelected
                         ? 'bg-yellow-400 border-yellow-400'
@@ -61,7 +60,7 @@ export default function DepartmentTriageStep({
                   >
                     <div className="flex items-center justify-between">
                       <span className={isSelected ? 'font-semibold text-lg' : 'text-gray-700'}>
-                        {dept}
+                        {practice.name}
                       </span>
                       {isSelected && <CheckCircle2 className="w-6 h-6 text-black" />}
                     </div>
@@ -78,7 +77,7 @@ export default function DepartmentTriageStep({
                 <p className="text-sm font-semibold text-yellow-900 mb-2">
                   Recommended Practice Area
                 </p>
-                <p className="text-2xl font-bold text-black mb-2">{leadDepartment}</p>
+                <p className="text-2xl font-bold text-black mb-2">{selectedPractice?.name ?? 'None selected'}</p>
                 <p className="text-sm text-gray-700">
                   Based on brief analysis and campaign requirements
                 </p>
