@@ -59,7 +59,7 @@ export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
                 }`}
                 onClick={() => {
                   setIsOpen(false)
-                  navigate('/home')
+                  navigate('/')
                   setCurrentView('home')
                 }}
                 type="button"

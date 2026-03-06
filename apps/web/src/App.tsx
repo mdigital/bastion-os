@@ -24,15 +24,15 @@ function App() {
               path="/"
               element={
                 <ProtectedRoute>
-                  <ClientsPage />
+                  <HomePage />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/home"
+              path="/clients"
               element={
                 <ProtectedRoute>
-                  <HomePage />
+                  <ClientsPage />
                 </ProtectedRoute>
               }
             />

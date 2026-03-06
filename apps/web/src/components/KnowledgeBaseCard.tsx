@@ -76,7 +76,7 @@ export default function KnowledgeBaseCard() {
           <button
             type="button"
             className="w-full py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/clients')}
           >
             View all clients
           </button>

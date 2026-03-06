@@ -37,7 +37,7 @@ export default function Header() {
           className="text-lg text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
           type="button"
           onClick={() => {
-            navigate('/home')
+            navigate('/')
           }}
         >
           Bastion OS
