@@ -56,10 +56,6 @@ export default function PracticeAreasPage() {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  if (loading) return <p className="text-gray-500 py-4">Loading practice areas...</p>
-  if (error) return <p className="text-red-600 py-4">{error}</p>
-  if (practices.length === 0) return <p className="text-gray-500 py-4">No practice areas configured.</p>
-
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -77,6 +73,12 @@ export default function PracticeAreasPage() {
         onClose={() => setShowAddModal(false)}
         onPracticeAdded={load}
       />
+
+      {loading && <p className="text-gray-500 py-4">Loading practice areas...</p>}
+      {error && <p className="text-red-600 py-4">{error}</p>}
+      {!loading && !error && practices.length === 0 && (
+        <p className="text-gray-500 py-4">No practice areas configured.</p>
+      )}
 
       {practices.map((practice) => {
         const isOpen = expanded[practice.id] ?? false
