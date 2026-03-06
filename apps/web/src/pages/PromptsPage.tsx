@@ -18,7 +18,6 @@ export default function PromptsPage() {
     apiFetch<Prompt[]>('/api/admin/prompts')
       .then((data) => {
         setPrompts(data)
-        // Restore drafts from localStorage
         const restored: Record<string, PromptDraft> = {}
         for (const p of data) {
           const stored = localStorage.getItem(`bastion-prompt-draft-${p.id}`)
@@ -42,7 +41,6 @@ export default function PromptsPage() {
 
   function handleChange(prompt: Prompt, value: string) {
     if (value === prompt.content) {
-      // Content matches DB — clear draft
       localStorage.removeItem(`bastion-prompt-draft-${prompt.id}`)
       setDrafts((prev) => {
         const next = { ...prev }
@@ -100,37 +98,41 @@ export default function PromptsPage() {
 
   return (
     <div>
-      <h2>Prompts</h2>
-
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {loading && <p className="text-gray-500 py-4">Loading...</p>}
+      {error && <p className="text-red-600 py-4">{error}</p>}
 
       {Object.entries(grouped).map(([category, items]) => (
-        <div key={category} style={{ marginBottom: 32 }}>
-          <h3>{category}</h3>
+        <div key={category} className="mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{category}</h3>
           {items.map((prompt) => (
-            <div key={prompt.id} style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <label style={{ fontWeight: 'bold' }}>{prompt.display_name}</label>
+            <div key={prompt.id} className="mb-5">
+              <div className="flex items-center gap-2 mb-2">
+                <label className="font-medium text-sm text-gray-700">{prompt.display_name}</label>
                 {isDirty(prompt) && (
-                  <span style={{ fontSize: 12, color: '#b45309', fontStyle: 'italic' }}>Draft</span>
+                  <span className="text-xs text-amber-600 italic">Draft</span>
                 )}
               </div>
               <textarea
                 value={getContent(prompt)}
                 onChange={(e) => handleChange(prompt, e.target.value)}
                 rows={6}
-                style={{ width: '100%', fontFamily: 'monospace', fontSize: 13, padding: 8 }}
+                className="w-full bg-white border border-gray-200 rounded-lg p-3 font-mono text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent resize-y"
               />
-              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              <div className="flex gap-2 mt-2">
                 <button
                   type="button"
                   onClick={() => handleSave(prompt)}
                   disabled={!isDirty(prompt) || saving === prompt.id}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-black text-white hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {saving === prompt.id ? 'Saving...' : 'Save'}
                 </button>
-                <button type="button" onClick={() => handleCancel(prompt)} disabled={!isDirty(prompt)}>
+                <button
+                  type="button"
+                  onClick={() => handleCancel(prompt)}
+                  disabled={!isDirty(prompt)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
                   Cancel
                 </button>
               </div>
@@ -139,7 +141,9 @@ export default function PromptsPage() {
         </div>
       ))}
 
-      {!loading && prompts.length === 0 && !error && <p>No prompts configured.</p>}
+      {!loading && prompts.length === 0 && !error && (
+        <p className="text-gray-500 py-4">No prompts configured.</p>
+      )}
     </div>
   )
 }
