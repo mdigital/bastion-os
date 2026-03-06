@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
 import type { Practice, PracticeTemplate, SectionTemplate } from '@bastion-os/shared'
 import { apiFetch } from '../lib/api.ts'
+import AddPracticeAreaModal from '../components/AddPracticeAreaModal.tsx'
 
 const BRIEF_LEVEL_LABELS: Record<string, string> = {
   new_project: 'New Project',
@@ -15,40 +16,41 @@ export default function PracticeAreasPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [practicesData, sectionsData] = await Promise.all([
-          apiFetch<Practice[]>('/api/admin/practices'),
-          apiFetch<SectionTemplate[]>('/api/admin/section-templates'),
-        ])
+  const load = useCallback(async () => {
+    try {
+      setLoading(true)
+      const [practicesData, sectionsData] = await Promise.all([
+        apiFetch<Practice[]>('/api/admin/practices'),
+        apiFetch<SectionTemplate[]>('/api/admin/section-templates'),
+      ])
 
-        setPractices(practicesData)
+      setPractices(practicesData)
 
-        const sectionsMap: Record<string, SectionTemplate> = {}
-        for (const s of sectionsData) sectionsMap[s.id] = s
-        setSectionTemplates(sectionsMap)
+      const sectionsMap: Record<string, SectionTemplate> = {}
+      for (const s of sectionsData) sectionsMap[s.id] = s
+      setSectionTemplates(sectionsMap)
 
-        // Fetch templates for each practice in parallel
-        const templatesMap: Record<string, PracticeTemplate[]> = {}
-        await Promise.all(
-          practicesData.map(async (p) => {
-            const pts = await apiFetch<PracticeTemplate[]>(
-              `/api/admin/practice-templates?practice_id=${p.id}`,
-            )
-            templatesMap[p.id] = pts
-          }),
-        )
-        setTemplates(templatesMap)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load')
-      } finally {
-        setLoading(false)
-      }
+      // Fetch templates for each practice in parallel
+      const templatesMap: Record<string, PracticeTemplate[]> = {}
+      await Promise.all(
+        practicesData.map(async (p) => {
+          const pts = await apiFetch<PracticeTemplate[]>(
+            `/api/admin/practice-templates?practice_id=${p.id}`,
+          )
+          templatesMap[p.id] = pts
+        }),
+      )
+      setTemplates(templatesMap)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load')
+    } finally {
+      setLoading(false)
     }
-    load()
   }, [])
+
+  useEffect(() => { load() }, [load])
 
   function toggle(id: string) {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -60,6 +62,22 @@ export default function PracticeAreasPage() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+        >
+          <Plus className="w-4 h-4" />
+          Add Practice Area
+        </button>
+      </div>
+
+      <AddPracticeAreaModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onPracticeAdded={load}
+      />
+
       {practices.map((practice) => {
         const isOpen = expanded[practice.id] ?? false
         const pts = templates[practice.id] ?? []
