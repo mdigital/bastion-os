@@ -1,5 +1,5 @@
-import type { Step } from '@bastion-os/shared'
-import { useState } from 'react'
+import type { Step, Practice } from '@bastion-os/shared'
+import { useCallback, useEffect, useState } from 'react'
 import ClientBriefCard from '../components/ClientBriefCard'
 import DepartmentTriageStep from '../components/DepartmentTriageStep'
 import KeyInformationStep from '../components/KeyInformationStep'
@@ -8,91 +8,244 @@ import Layout from '../components/Layout'
 import ProgressSteps from '../components/ProgressSteps'
 import UploadStep from '../components/UploadStep'
 import { useAppState } from '../contexts/useAppState'
-import { defaultSections } from '../data/defaultSection'
 import type { KeyInfo } from '../types/KeyInfo'
 import type { SectionData } from '../types/SectionData'
 import BriefSectionsStep from '../components/BriefSectionsStep'
+import { apiUploadFile, apiFetch } from '../lib/api'
+import { useBriefPolling } from '../hooks/useBriefPolling'
+import type { BriefWithRelations } from '../hooks/useBriefPolling'
+import { Loader2, AlertCircle, RotateCcw } from 'lucide-react'
+
+/** Map DB brief to frontend KeyInfo shape */
+function briefToKeyInfo(brief: BriefWithRelations): KeyInfo {
+  return {
+    client: '', // client name resolved separately if needed
+    jobToBeDone: brief.job_to_be_done ?? '',
+    budget: brief.budget ?? '',
+    dueDate: brief.due_date ?? '',
+    liveDate: brief.live_date ?? '',
+    campaignDuration: brief.campaign_duration ?? '',
+    briefLevel: brief.brief_level === 'fast_forward' ? 'Fast Forward Brief' : 'New Project Brief',
+  }
+}
+
+/** Map DB brief_sections to frontend SectionData shape */
+function sectionsToSectionData(brief: BriefWithRelations): SectionData[] {
+  return (brief.brief_sections ?? []).map((s) => ({
+    id: s.id,
+    title: s.title,
+    content: s.content ?? '',
+    missing: (s.missing_info as string[]) ?? [],
+    enhancements: (s.enhancements as Array<{ text: string; source: string }>) ?? [],
+    questions: (s.questions as string[]) ?? [],
+  }))
+}
+
+// Analysis states that indicate "still processing"
+const PROCESSING_STATUSES = ['pending', 'extracting', 'triaging', 'generating']
+const FAILED_STATUSES = ['extract_failed', 'triage_failed', 'sections_failed']
 
 export default function HomePage() {
   const [keyInfo, setKeyInfo] = useState<KeyInfo>({
-    client: 'Acme Corporation',
-    jobToBeDone:
-      'Launch integrated multi-channel campaign for new sustainable product line targeting environmentally conscious millennials and Gen Z consumers',
-    budget: '$250,000',
-    dueDate: '2025-03-15',
-    liveDate: '2025-04-01',
-    campaignDuration: '6 months',
+    client: '',
+    jobToBeDone: '',
+    budget: '',
+    dueDate: '',
+    liveDate: '',
+    campaignDuration: '',
     briefLevel: 'New Project Brief',
   })
-  const [sections, setSections] = useState<SectionData[]>(defaultSections)
+  const [sections, setSections] = useState<SectionData[]>([])
   const [currentStep, setCurrentStep] = useState<Step>('upload')
   const { currentView, setCurrentView } = useAppState()
-  const [, setUploadedFile] = useState<File | null>(null)
-  const [leadDepartment, setLeadDepartment] = useState('Digital')
-  const [supportingDepartments, setSupportingDepartments] = useState(['Social', 'Creative', 'PR'])
+  const [briefId, setBriefId] = useState<string | null>(null)
+  const [leadDepartment, setLeadDepartment] = useState('')
+  const [supportingDepartments, setSupportingDepartments] = useState<string[]>([])
+  const [triageRationale, setTriageRationale] = useState('')
   const [showComparison] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [practices, setPractices] = useState<Practice[]>([])
   const [approverComments, setApproverComments] = useState<{
     [key: number]: { comment: string; approverName: string; actioned: boolean }
-  }>({
-    0: {
-      comment:
-        "Great start on the objective, but please add specific success metrics - what does 'market leadership' mean quantitatively? Also, clarify the timeline for achieving these objectives.",
-      approverName: 'Sarah Chen',
-      actioned: false,
-    },
-    2: {
-      comment:
-        'The target audience definition needs more depth. Can we include specific psychographics, media consumption habits, and purchase behaviour patterns?',
-      approverName: 'Marcus Thompson',
-      actioned: false,
-    },
-  })
+  }>({})
+
+  const { brief, isPolling, retry } = useBriefPolling(briefId)
+
+  // Fetch practices on mount
+  useEffect(() => {
+    apiFetch<Practice[]>('/api/admin/practices')
+      .then(setPractices)
+      .catch(() => {}) // silently fail — practices will be empty
+  }, [])
+
+  // Drive step transitions from brief analysis_status
+  useEffect(() => {
+    if (!brief) return
+
+    // Update key info when extraction completes
+    if (
+      brief.analysis_status === 'extracted' ||
+      brief.analysis_status === 'triaging' ||
+      brief.analysis_status === 'triaged' ||
+      brief.analysis_status === 'generating' ||
+      brief.analysis_status === 'ready'
+    ) {
+      setKeyInfo(briefToKeyInfo(brief))
+    }
+
+    // Auto-advance to keyInfo step when extraction finishes
+    if (brief.analysis_status === 'extracted' && currentStep === 'upload') {
+      setCurrentStep('keyInfo')
+    }
+
+    // Update triage data
+    if (
+      brief.analysis_status === 'triaged' ||
+      brief.analysis_status === 'generating' ||
+      brief.analysis_status === 'ready'
+    ) {
+      // Resolve lead practice name
+      if (brief.lead_practice_id && practices.length > 0) {
+        const lead = practices.find((p) => p.id === brief.lead_practice_id)
+        if (lead) setLeadDepartment(lead.name)
+      }
+      // Resolve supporting practice names
+      if (brief.supporting_practice_ids?.length && practices.length > 0) {
+        const names = brief.supporting_practice_ids
+          .map((id) => practices.find((p) => p.id === id)?.name)
+          .filter((n): n is string => !!n)
+        setSupportingDepartments(names)
+      }
+      setTriageRationale(brief.triage_rationale ?? '')
+    }
+
+    // Auto-advance to triage step
+    if (brief.analysis_status === 'triaged' && currentStep === 'keyInfo') {
+      setCurrentStep('triage')
+    }
+
+    // Update sections when generation completes
+    if (brief.analysis_status === 'ready') {
+      setSections(sectionsToSectionData(brief))
+      if (currentStep === 'triage') {
+        setCurrentStep('sections')
+      }
+    }
+  }, [brief, practices, currentStep])
 
   const handleNewBrief = () => {
+    setBriefId(null)
     setKeyInfo({
-      client: 'Acme Corporation',
-      jobToBeDone:
-        'Launch integrated multi-channel campaign for new sustainable product line targeting environmentally conscious millennials and Gen Z consumers',
-      budget: '$250,000',
-      dueDate: '2025-03-15',
-      liveDate: '2025-04-01',
-      campaignDuration: '6 months',
+      client: '',
+      jobToBeDone: '',
+      budget: '',
+      dueDate: '',
+      liveDate: '',
+      campaignDuration: '',
       briefLevel: 'New Project Brief',
     })
-    setSections(sections)
+    setSections([])
+    setLeadDepartment('')
+    setSupportingDepartments([])
+    setTriageRationale('')
+    setApproverComments({})
     setCurrentStep('upload')
     setCurrentView('brief')
+    setUploadError(null)
   }
 
-  const handleFileUpload = (file: File) => {
-    console.log('file upload', file)
-    setUploadedFile(file)
-    // Simulate
-    setTimeout(() => {
-      setCurrentStep('keyInfo')
-    }, 1500)
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true)
+    setUploadError(null)
+    try {
+      const created = await apiUploadFile<{ id: string }>('/api/briefs', file)
+      setBriefId(created.id)
+      // Polling will auto-advance steps
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setIsUploading(false)
+    }
   }
 
-  const handleKeyInfoEdit = (field: keyof KeyInfo, value: string) => {
-    console.log(`field: ${field} value: ${value}`)
-  }
+  const handleKeyInfoEdit = useCallback(
+    (field: keyof KeyInfo, value: string) => {
+      setKeyInfo((prev) => ({ ...prev, [field]: value }))
 
-  const handleSectionUpdate = (index: number, content: string) => {
-    const newSections = [...sections]
-    newSections[index].content = content
-    setSections(newSections)
-  }
+      // Persist to API (debounce not needed — save happens on field blur or "Continue")
+      if (briefId) {
+        // Map frontend field names to DB column names
+        const fieldMap: Record<string, string> = {
+          jobToBeDone: 'job_to_be_done',
+          budget: 'budget',
+          dueDate: 'due_date',
+          liveDate: 'live_date',
+          campaignDuration: 'campaign_duration',
+        }
+        const dbField = fieldMap[field]
+        if (dbField) {
+          apiFetch(`/api/briefs/${briefId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [dbField]: value || null }),
+          }).catch(() => {}) // silent
+        }
+      }
+    },
+    [briefId],
+  )
+
+  const handleSectionUpdate = useCallback(
+    (index: number, content: string) => {
+      setSections((prev) => {
+        const newSections = [...prev]
+        newSections[index] = { ...newSections[index], content }
+        return newSections
+      })
+
+      // Persist to API
+      const section = sections[index]
+      if (briefId && section?.id) {
+        apiFetch(`/api/briefs/${briefId}/sections/${section.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content }),
+        }).catch(() => {}) // silent
+      }
+    },
+    [briefId, sections],
+  )
+
+  const handleLeadDepartmentChange = useCallback(
+    (dept: string) => {
+      setLeadDepartment(dept)
+      if (briefId && practices.length > 0) {
+        const practice = practices.find((p) => p.name === dept)
+        if (practice) {
+          apiFetch(`/api/briefs/${briefId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lead_practice_id: practice.id }),
+          }).catch(() => {})
+        }
+      }
+    },
+    [briefId, practices],
+  )
 
   const handleMarkCommentActioned = (sectionIndex: number) => {
-    const updatedComments = {
-      ...approverComments,
+    setApproverComments((prev) => ({
+      ...prev,
       [sectionIndex]: {
-        ...approverComments[sectionIndex],
+        ...prev[sectionIndex],
         actioned: true,
       },
-    }
-    setApproverComments(updatedComments)
+    }))
   }
+
+  const isProcessing = brief && PROCESSING_STATUSES.includes(brief.analysis_status)
+  const isFailed = brief && FAILED_STATUSES.includes(brief.analysis_status)
 
   return (
     <Layout>
@@ -113,11 +266,57 @@ export default function HomePage() {
         {currentView === 'brief' && (
           <>
             <ProgressSteps currentStep={currentStep} setCurrentStep={setCurrentStep} />
-            {currentStep === 'upload' && <UploadStep onUpload={handleFileUpload} />}
+
+            {/* Processing Indicator */}
+            {isPolling && isProcessing && currentStep !== 'upload' && (
+              <div className="max-w-2xl mx-auto px-8 mb-4">
+                <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <Loader2 className="w-5 h-5 text-yellow-600 animate-spin" />
+                  <span className="text-sm text-yellow-800">
+                    {brief.analysis_status === 'extracting' && 'Extracting text from document...'}
+                    {brief.analysis_status === 'triaging' && 'Analysing practice area fit...'}
+                    {brief.analysis_status === 'generating' && 'Generating enriched sections...'}
+                    {brief.analysis_status === 'pending' && 'Starting analysis...'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {isFailed && (
+              <div className="max-w-2xl mx-auto px-8 mb-4">
+                <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                    <span className="text-sm text-red-800">
+                      Analysis failed: {brief.analysis_error ?? 'Unknown error'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={retry}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {currentStep === 'upload' && (
+              <UploadStep onUpload={handleFileUpload} isUploading={isUploading} uploadError={uploadError} />
+            )}
             {currentStep === 'keyInfo' && keyInfo && (
               <KeyInformationStep
                 keyInfo={keyInfo}
-                onNext={() => setCurrentStep('triage')}
+                onNext={() => {
+                  // If triage is already done, skip ahead
+                  if (brief && (brief.analysis_status === 'triaged' || brief.analysis_status === 'generating' || brief.analysis_status === 'ready')) {
+                    setCurrentStep('triage')
+                  } else {
+                    setCurrentStep('triage')
+                  }
+                }}
                 onEdit={handleKeyInfoEdit}
                 onBack={() => setCurrentStep('upload')}
               />
@@ -125,10 +324,17 @@ export default function HomePage() {
             {currentStep === 'triage' && (
               <DepartmentTriageStep
                 leadDepartment={leadDepartment}
-                rationale="This campaign requires a digital-first approach given the target audience of Millennials and Gen Z who are primarily reached through online channels. The brief emphasizes social media engagement and digital advertising as key components. Digital should lead the strategy with Social providing content expertise, Creative developing the brand narrative, and PR managing reputation and thought leadership aspects."
-                onLeadDepartmentChange={setLeadDepartment}
+                rationale={triageRationale}
+                practices={practices}
+                onLeadDepartmentChange={handleLeadDepartmentChange}
                 onSupportingDepartmentsChange={setSupportingDepartments}
-                onNext={() => setCurrentStep('sections')}
+                onNext={() => {
+                  if (brief?.analysis_status === 'ready') {
+                    setCurrentStep('sections')
+                  } else {
+                    setCurrentStep('sections')
+                  }
+                }}
                 onBack={() => setCurrentStep('keyInfo')}
               />
             )}
@@ -136,7 +342,7 @@ export default function HomePage() {
               <BriefSectionsStep
                 onKeyInfoChange={handleKeyInfoEdit}
                 keyInfo={keyInfo}
-                onLeadDepartmentChange={setLeadDepartment}
+                onLeadDepartmentChange={handleLeadDepartmentChange}
                 leadDepartment={leadDepartment}
                 sections={sections}
                 onSectionUpdate={handleSectionUpdate}

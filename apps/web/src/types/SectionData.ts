@@ -1,4 +1,5 @@
 export interface SectionData {
+  id?: string
   title: string
   content: string
   missing: string[]

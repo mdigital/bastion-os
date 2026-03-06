@@ -8,6 +8,17 @@ export type AgentType = 'competitor' | 'client_data' | 'media' | 'social' | 'mar
 export type AgentStatus = 'active' | 'paused' | 'complete'
 export type SignalPriority = 'high' | 'medium' | 'low'
 export type SignalStatus = 'new' | 'reviewed' | 'converted'
+export type BriefAnalysisStatus =
+  | 'pending'
+  | 'extracting'
+  | 'extracted'
+  | 'extract_failed'
+  | 'triaging'
+  | 'triaged'
+  | 'triage_failed'
+  | 'generating'
+  | 'ready'
+  | 'sections_failed'
 
 // ─── Steps ──────────────────────────────────────────────────────────────────
 
@@ -98,6 +109,10 @@ export interface Brief {
   brief_level: BriefLevel
   lead_practice_id: string | null
   supporting_practice_ids: string[]
+  analysis_status: BriefAnalysisStatus
+  analysis_error: string | null
+  extracted_text: string | null
+  triage_rationale: string | null
   status: BriefStatus
   archived: boolean
   created_at: string

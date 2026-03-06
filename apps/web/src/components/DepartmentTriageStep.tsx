@@ -1,25 +1,31 @@
+import type { Practice } from '@bastion-os/shared'
 import { ArrowLeft, CheckCircle2, Users } from 'lucide-react'
+
+// prettier-ignore
+const FALLBACK_PRACTICES = ['Creative', 'Design', 'Social', 'Influencer', 'Earned PR', 'Crisis and Corporate Communications', 'Partnership', 'Experiential', 'Insights', 'Media Planning and Buying', 'Advisory (Digital)', 'Analytics (Digital)', 'Automation (Digital)', 'Activation (Digital)'];
 
 interface DepartmentTriageStepProps {
   leadDepartment: string
   rationale: string
+  practices?: Practice[]
   onLeadDepartmentChange: (dept: string) => void
   onSupportingDepartmentsChange: (depts: string[]) => void
   onNext: () => void
   onBack: () => void
 }
 
-// prettier-ignore
-const practices = ['Creative', 'Design', 'Social', 'Influencer', 'Earned PR', 'Crisis and Corporate Communications', 'Partnership', 'Experiential', 'Insights', 'Media Planning and Buying', 'Advisory (Digital)', 'Analytics (Digital)', 'Automation (Digital)', 'Activation (Digital)'];
-
 export default function DepartmentTriageStep({
   leadDepartment,
   rationale,
+  practices: practicesProp,
   onLeadDepartmentChange,
   onSupportingDepartmentsChange,
   onNext,
   onBack,
 }: DepartmentTriageStepProps) {
+  const practiceNames = practicesProp?.length
+    ? practicesProp.map((p) => p.name)
+    : FALLBACK_PRACTICES
   const handlePracticeSelect = (dept: string) => {
     onLeadDepartmentChange(dept)
     onSupportingDepartmentsChange([])
@@ -47,7 +53,7 @@ export default function DepartmentTriageStep({
               </p>
             </div>
             <div className="space-y-3">
-              {practices.map((dept) => {
+              {practiceNames.map((dept) => {
                 const isSelected = dept === leadDepartment
                 return (
                   <div

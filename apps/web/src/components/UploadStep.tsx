@@ -1,11 +1,13 @@
-import { Upload, FileText, Image, Type } from 'lucide-react'
+import { Upload, FileText, Image, Type, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
 interface UploadStepProps {
   onUpload: (file: File) => void
+  isUploading?: boolean
+  uploadError?: string | null
 }
 
-export default function UploadStep({ onUpload }: UploadStepProps) {
+export default function UploadStep({ onUpload, isUploading, uploadError }: UploadStepProps) {
   const [pastedText, setPastedText] = useState('')
   const [uploadMethod, setUploadMethod] = useState<'file' | 'text'>('file')
 
@@ -81,7 +83,19 @@ export default function UploadStep({ onUpload }: UploadStepProps) {
           </button>
         </div>
 
-        {uploadMethod === 'file' ? (
+        {uploadError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            {uploadError}
+          </div>
+        )}
+
+        {isUploading ? (
+          <div className="border-4 border-dashed border-yellow-300 rounded-2xl p-16 text-center bg-yellow-50">
+            <Loader2 className="w-16 h-16 mx-auto mb-6 text-yellow-400 animate-spin" />
+            <h3 className="mb-2">Uploading & analysing your brief...</h3>
+            <p className="text-gray-600">This may take a moment</p>
+          </div>
+        ) : uploadMethod === 'file' ? (
           <>
             <div
               onDrop={handleDrop}

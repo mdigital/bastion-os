@@ -19,6 +19,7 @@ import kbChatRoutes from './routes/kb/chat.js'
 import kbSuggestionRoutes from './routes/kb/suggestions.js'
 import promptRoutes from './routes/admin/prompts.js'
 import checkEmailRoute from './routes/auth/check-email.js'
+import briefRoutes from './routes/briefs/briefs.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -61,6 +62,7 @@ export async function buildApp() {
   await app.register(kbChatRoutes)
   await app.register(kbSuggestionRoutes)
 
+  await app.register(briefRoutes)
   await app.register(promptRoutes)
   await app.register(checkEmailRoute)
 
