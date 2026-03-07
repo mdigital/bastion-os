@@ -60,12 +60,14 @@ export default function KnowledgeBaseCard() {
           visibleClients.map((client, i) => {
             const col = clientColor[i % clientColor.length] ?? clientColor[0]
             return (
-              <KnowledgeBaseClient
-                key={client.name}
-                name={client.name}
-                sources={client.source_count}
-                dotColorClass={col}
-              />
+              <ul key={client.id}>
+                <KnowledgeBaseClient
+                  name={client.name}
+                  id={client.id}
+                  sources={client.source_count}
+                  dotColorClass={col}
+                />
+              </ul>
             )
           })
         )}
@@ -83,7 +85,8 @@ export default function KnowledgeBaseCard() {
 
           <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600">
-              {clients.length} clients • {clients.reduce((sum, c) => sum + c.source_count, 0)} total sources
+              {clients.length} clients • {clients.reduce((sum, c) => sum + c.source_count, 0)} total
+              sources
             </p>
           </div>
         </>
