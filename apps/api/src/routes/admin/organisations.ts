@@ -2,6 +2,26 @@ import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../../lib/supabase.js'
 
 const organisationRoutes: FastifyPluginAsync = async (fastify) => {
+  // GET /api/org/settings — read-only settings for any authenticated user
+  fastify.get(
+    '/api/org/settings',
+    { config: { requiredRoles: ['admin', 'manager', 'user'] } },
+    async (request, reply) => {
+      if (!request.organisationId) {
+        return reply.notFound('User has no organisation')
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('organisations')
+        .select('settings')
+        .eq('id', request.organisationId)
+        .single()
+
+      if (error) return reply.internalServerError(error.message)
+      return { settings: data?.settings ?? {} }
+    },
+  )
+
   // GET /api/admin/organisation — current user's org
   fastify.get(
     '/api/admin/organisation',

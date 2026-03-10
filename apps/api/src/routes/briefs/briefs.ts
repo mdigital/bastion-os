@@ -1,7 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../../lib/supabase.js'
-import { analyzeBrief } from '../../lib/brief-analyzer.js'
+import { analyzeBrief, parseJSON } from '../../lib/brief-analyzer.js'
+import { gemini } from '../../lib/gemini.js'
+import { getPrompt } from '../../lib/prompts.js'
+import { withRetry } from '../../lib/retry.js'
 
 const briefRoutes: FastifyPluginAsync = async (fastify) => {
   // POST /api/briefs — create brief + upload file + fire-and-forget analysis
@@ -271,6 +274,154 @@ const briefRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       return reply.code(202).send({ message: 'Brief analysis restarted' })
+    },
+  )
+
+  // POST /api/briefs/:id/sections/:sectionId/analyze — re-analyze a single section
+  fastify.post<{ Params: { id: string; sectionId: string } }>(
+    '/api/briefs/:id/sections/:sectionId/analyze',
+    { config: { requiredRoles: ['admin', 'manager', 'user'] } },
+    async (request, reply) => {
+      if (!request.organisationId) {
+        return reply.notFound('User has no organisation')
+      }
+
+      const { id, sectionId } = request.params
+
+      // Fetch brief with extracted text and key info
+      const { data: brief, error: briefErr } = await supabaseAdmin
+        .from('briefs')
+        .select('id, extracted_text, job_to_be_done, budget, due_date, live_date, campaign_duration, brief_level, client_id, lead_practice_id')
+        .eq('id', id)
+        .eq('organisation_id', request.organisationId)
+        .single()
+
+      if (briefErr || !brief) return reply.notFound('Brief not found')
+
+      // Fetch the section with its template info
+      const { data: section, error: sectionErr } = await supabaseAdmin
+        .from('brief_sections')
+        .select('id, content, section_template_id, title')
+        .eq('id', sectionId)
+        .eq('brief_id', id)
+        .single()
+
+      if (sectionErr || !section) return reply.notFound('Section not found')
+
+      // Fetch the section template for name, description, evaluation criteria
+      let templateName = section.title
+      let templateDescription = ''
+      let evaluationCriteria = ''
+
+      if (section.section_template_id) {
+        const { data: template } = await supabaseAdmin
+          .from('section_templates')
+          .select('name, description, ai_evaluation_criteria, practice_prompts')
+          .eq('id', section.section_template_id)
+          .single()
+
+        if (template) {
+          templateName = template.name
+          templateDescription = template.description ?? ''
+
+          // Use practice-specific criteria if available
+          let practiceName: string | undefined
+          if (brief.lead_practice_id) {
+            const { data: practice } = await supabaseAdmin
+              .from('practices')
+              .select('name')
+              .eq('id', brief.lead_practice_id)
+              .single()
+            practiceName = practice?.name
+          }
+
+          evaluationCriteria =
+            (practiceName && (template.practice_prompts as Record<string, string> | null)?.[practiceName])
+            ?? template.ai_evaluation_criteria
+            ?? ''
+        }
+      }
+
+      // Fetch KB context if client_id is set
+      let kbContext = ''
+      if (brief.client_id) {
+        const { data: kbSources } = await supabaseAdmin
+          .from('client_sources')
+          .select('file_name, digest_summary')
+          .eq('client_id', brief.client_id)
+          .eq('digest_status', 'ready')
+          .is('deleted_at', null)
+
+        if (kbSources?.length) {
+          const kbDocuments = kbSources
+            .map((s) => `### ${s.file_name}\n${s.digest_summary ?? '(no summary)'}`)
+            .join('\n\n')
+
+          const kbPromptTemplate = await getPrompt(
+            'brief-kb-context',
+            'The following documents from the client\'s knowledge base are provided as supporting material. Use them to enrich section content, identify brand guidelines, rules, tone of voice, and any relevant constraints. Do not fabricate information beyond what these documents contain.\n\n{{kb_documents}}',
+          )
+
+          kbContext = kbPromptTemplate.replace('{{kb_documents}}', kbDocuments)
+        }
+      }
+
+      const keyInfoSummary = JSON.stringify({
+        job_to_be_done: brief.job_to_be_done,
+        budget: brief.budget,
+        due_date: brief.due_date,
+        live_date: brief.live_date,
+        campaign_duration: brief.campaign_duration,
+        brief_level: brief.brief_level,
+      }, null, 2)
+
+      const promptTemplate = await getPrompt(
+        'brief-reanalyze-section',
+        'You are a senior strategist reviewing a client brief section that has been edited.\n\nBrief text:\n{{brief_text}}\n\nKey information:\n{{key_info}}\n\n{{knowledge_base}}\n\nSection: {{section_name}}\nDescription: {{section_description}}\nEvaluation Criteria: {{evaluation_criteria}}\n\nCurrent section content:\n{{section_content}}\n\nAnalyse the current content against the brief, key info, knowledge base, and evaluation criteria. Return a JSON object:\n{\n  "missing_info": ["items that should be in this section but are missing or incomplete"],\n  "enhancements": [{"text": "suggestion for improvement", "source": "basis for suggestion"}],\n  "questions": ["questions to ask the client to improve this section"]\n}\n\nReturn ONLY the JSON object, no preamble.',
+      )
+
+      const prompt = promptTemplate
+        .replace('{{brief_text}}', brief.extracted_text ?? '')
+        .replace('{{key_info}}', keyInfoSummary)
+        .replace('{{knowledge_base}}', kbContext)
+        .replace('{{section_name}}', templateName)
+        .replace('{{section_description}}', templateDescription)
+        .replace('{{evaluation_criteria}}', evaluationCriteria)
+        .replace('{{section_content}}', section.content ?? '')
+
+      const result = await withRetry(
+        () => gemini.models.generateContent({
+          model: 'gemini-2.0-flash',
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: { responseMimeType: 'application/json' },
+        }),
+        { logger: fastify.log, label: 'reanalyze-section' },
+      )
+
+      const analysis = parseJSON<{
+        missing_info: string[]
+        enhancements: Array<{ text: string; source: string }>
+        questions: string[]
+      }>(result.text ?? '{}')
+
+      // Update the section with new analysis
+      const { data: updated, error: updateErr } = await supabaseAdmin
+        .from('brief_sections')
+        .update({
+          missing_info: analysis.missing_info,
+          enhancements: analysis.enhancements,
+          questions: analysis.questions,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', sectionId)
+        .eq('brief_id', id)
+        .select()
+        .single()
+
+      if (updateErr) return reply.internalServerError(updateErr.message)
+
+      fastify.log.info({ briefId: id, sectionId }, 'Section re-analysis complete')
+      return updated
     },
   )
 

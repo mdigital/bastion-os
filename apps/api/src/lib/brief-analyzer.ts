@@ -7,7 +7,7 @@ import { supabaseAdmin } from './supabase.js'
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** Strip markdown code fences and sanitize control characters in JSON strings. */
-function parseJSON<T>(text: string): T {
+export function parseJSON<T>(text: string): T {
   const stripped = text
     .replace(/^```(?:json)?\s*\n?/, '')
     .replace(/\n?```\s*$/, '')

@@ -7,6 +7,7 @@ import {
   Check,
   MessageSquare,
   CheckCircle,
+  Loader2,
 } from 'lucide-react'
 import { useState } from 'react'
 import { RichTextEditor } from './RichTextEditor'
@@ -20,6 +21,7 @@ interface BriefSectionProps {
   onContentChange: (content: string) => void
   approverComment?: { comment: string; approverName: string; actioned: boolean }
   onMarkCommentActioned?: () => void
+  isReanalyzing?: boolean
 }
 
 export function BriefSection({
@@ -31,6 +33,7 @@ export function BriefSection({
   onContentChange,
   approverComment,
   onMarkCommentActioned,
+  isReanalyzing,
 }: BriefSectionProps) {
   const [activeTab, setActiveTab] = useState<'missing' | 'enhancements' | 'questions'>('missing')
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
@@ -106,7 +109,15 @@ export function BriefSection({
         </div>
 
         {/* Insight Boxes */}
-        <div className="space-y-4">
+        <div className="space-y-4 relative">
+          {isReanalyzing && (
+            <div className="absolute inset-0 bg-white/60 z-10 flex items-center justify-center rounded-lg">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Re-analyzing...
+              </div>
+            </div>
+          )}
           {/* Tabs */}
           <div className="flex flex-wrap gap-2">
             {tabs.map((tab) => (

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Bold,
   Italic,
@@ -17,8 +17,22 @@ interface RichTextEditorProps {
 
 export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
+  const isInternalChange = useRef(false)
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
+
+  // Sync external value changes into the contentEditable div.
+  // Skip when the change originated from user typing (isInternalChange).
+  useEffect(() => {
+    if (isInternalChange.current) {
+      isInternalChange.current = false
+      return
+    }
+    const el = editorRef.current
+    if (el && el.innerHTML !== value) {
+      el.innerHTML = value
+    }
+  }, [value])
 
   const execCommand = (command: string, value?: string) => {
     document.execCommand(command, false, value)
@@ -42,6 +56,7 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
 
   const handleInput = () => {
     if (editorRef.current) {
+      isInternalChange.current = true
       onChange(editorRef.current.innerHTML)
     }
   }
@@ -147,7 +162,6 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
         ref={editorRef}
         contentEditable
         onInput={handleInput}
-        dangerouslySetInnerHTML={{ __html: value }}
         className="min-h-64 max-h-96 overflow-y-auto px-4 py-3 focus:outline-none prose prose-sm max-w-none"
         style={{
           wordBreak: 'break-word',

@@ -16,6 +16,7 @@ import { BriefSection } from './BriefSection'
 import { ExportBriefModal } from './ExportBriefModal'
 
 interface SectionData {
+  id?: string
   title: string
   content: string
   missing: string[]
@@ -44,6 +45,7 @@ interface BriefSectionsStepProps {
   onMarkCommentActioned?: (sectionIndex: number) => void
   supportingDepartments: string[]
   onSupportingDepartmentsChange?: (depts: string[]) => void
+  reanalyzingSections?: Record<string, boolean>
 }
 
 export default function BriefSectionsStep({
@@ -57,6 +59,7 @@ export default function BriefSectionsStep({
   onMarkCommentActioned,
   supportingDepartments,
   onSupportingDepartmentsChange,
+  reanalyzingSections,
 }: BriefSectionsStepProps) {
   const [showKeyInfoEditor, setShowKeyInfoEditor] = useState(false)
   const [showDepartmentEditor, setShowDepartmentEditor] = useState(false)
@@ -207,7 +210,7 @@ export default function BriefSectionsStep({
           {/* Existing Brief Sections */}
           {sections.map((section, index) => (
             <BriefSection
-              key={index}
+              key={section.id ?? index}
               title={section.title}
               content={section.content}
               missing={section.missing}
@@ -218,6 +221,7 @@ export default function BriefSectionsStep({
               onMarkCommentActioned={
                 onMarkCommentActioned ? () => onMarkCommentActioned(index) : undefined
               }
+              isReanalyzing={section.id ? reanalyzingSections?.[section.id] : false}
             />
           ))}
         </div>

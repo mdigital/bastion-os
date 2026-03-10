@@ -1,5 +1,5 @@
 import type { Step, Practice } from '@bastion-os/shared'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import BriefsListingPage from '../components/BriefsListingPage'
 import ClientBriefCard from '../components/ClientBriefCard'
 import DepartmentTriageStep from '../components/DepartmentTriageStep'
@@ -69,7 +69,27 @@ export default function HomePage() {
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([])
   const [clientId, setClientId] = useState<string | null>(null)
 
+  // Debounced section save + re-analysis state
+  const [reanalyzingSections, setReanalyzingSections] = useState<Record<string, boolean>>({})
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const reanalysisDebounceMs = useRef(2000)
+
+  // Hydration guard: prevent poll data from overwriting user edits
+  const sectionsHydrated = useRef(false)
+
   const { brief, retry } = useBriefPolling(briefId)
+
+  // Fetch org settings for debounce value
+  useEffect(() => {
+    apiFetch<{ settings: Record<string, unknown> }>('/api/org/settings')
+      .then((res) => {
+        const val = res.settings?.section_reanalysis_debounce_ms
+        if (typeof val === 'number' && val >= 500) {
+          reanalysisDebounceMs.current = val
+        }
+      })
+      .catch(() => {}) // silent — use default
+  }, [])
 
   // Fetch practices, briefs, and clients on mount
   const fetchBriefs = useCallback(() => {
@@ -127,9 +147,10 @@ export default function HomePage() {
       setTriageRationale(brief.triage_rationale ?? '')
     }
 
-    // Update sections data in the background
-    if (brief.analysis_status === 'ready') {
+    // Update sections data in the background — only on first hydration
+    if (brief.analysis_status === 'ready' && !sectionsHydrated.current) {
       setSections(sectionsToSectionData(brief))
+      sectionsHydrated.current = true
     }
 
     // Only auto-advance from upload → keyInfo once extraction completes
@@ -164,6 +185,9 @@ export default function HomePage() {
         }
       }
 
+      // Reset hydration guard so poll data loads fresh for the new brief
+      sectionsHydrated.current = false
+
       setBriefId(selectedBriefId)
       setClientId(selected?.client_id ?? null)
       setCurrentStep(startStep)
@@ -173,6 +197,9 @@ export default function HomePage() {
   )
 
   const handleNewBrief = () => {
+    // Reset hydration guard
+    sectionsHydrated.current = false
+
     setBriefId(null)
     setClientId(null)
     setKeyInfo({
@@ -200,6 +227,8 @@ export default function HomePage() {
     try {
       const created = await apiUploadFile<{ id: string }>('/api/briefs', file)
       setBriefId(created.id)
+      // Reset hydration guard for fresh brief
+      sectionsHydrated.current = false
       // Polling will auto-advance steps
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
@@ -237,21 +266,63 @@ export default function HomePage() {
 
   const handleSectionUpdate = useCallback(
     (index: number, content: string) => {
+      // Update local state immediately for responsive UI
       setSections((prev) => {
         const newSections = [...prev]
         newSections[index] = { ...newSections[index], content }
         return newSections
       })
 
-      // Persist to API
-      const section = sections[index]
-      if (briefId && section?.id) {
-        apiFetch(`/api/briefs/${briefId}/sections/${section.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content }),
-        }).catch(() => {}) // silent
+      // Get section id from current state
+      const sectionId = sections[index]?.id
+      if (!briefId || !sectionId) return
+
+      // Clear any existing debounce timer for this section
+      if (debounceTimers.current[sectionId]) {
+        clearTimeout(debounceTimers.current[sectionId])
       }
+
+      // Debounce: save content + trigger re-analysis
+      debounceTimers.current[sectionId] = setTimeout(async () => {
+        try {
+          // Save section content
+          await apiFetch(`/api/briefs/${briefId}/sections/${sectionId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content }),
+          })
+
+          // Trigger re-analysis
+          setReanalyzingSections((prev) => ({ ...prev, [sectionId]: true }))
+
+          const updated = await apiFetch<{
+            id: string
+            missing_info: string[] | null
+            enhancements: Array<{ text: string; source: string }> | null
+            questions: string[] | null
+          }>(`/api/briefs/${briefId}/sections/${sectionId}/analyze`, {
+            method: 'POST',
+          })
+
+          // Update section analysis data in local state
+          setSections((prev) =>
+            prev.map((s) =>
+              s.id === sectionId
+                ? {
+                    ...s,
+                    missing: (updated.missing_info as string[]) ?? [],
+                    enhancements: (updated.enhancements as Array<{ text: string; source: string }>) ?? [],
+                    questions: (updated.questions as string[]) ?? [],
+                  }
+                : s,
+            ),
+          )
+        } catch {
+          // Silent failure — user can continue editing
+        } finally {
+          setReanalyzingSections((prev) => ({ ...prev, [sectionId]: false }))
+        }
+      }, reanalysisDebounceMs.current)
     },
     [briefId, sections],
   )
@@ -391,6 +462,7 @@ export default function HomePage() {
                 onMarkCommentActioned={handleMarkCommentActioned}
                 supportingDepartments={supportingDepartments}
                 onSupportingDepartmentsChange={setSupportingDepartments}
+                reanalyzingSections={reanalyzingSections}
               />
             )}
           </>
