@@ -257,7 +257,7 @@ export default function AddPracticeTemplateModal({
                                 <p className="text-xs text-gray-500 truncate">{tpl.description}</p>
                               )}
                             </div>
-                            {tpl.ai_evaluation_criteria && (
+                            {(tpl.practice_prompts?.[practiceName] ?? tpl.ai_evaluation_criteria) && (
                               <button
                                 type="button"
                                 onClick={() => setExpandedPrompt(isExpanded ? null : tpl.id)}
@@ -272,10 +272,10 @@ export default function AddPracticeTemplateModal({
                               </button>
                             )}
                           </div>
-                          {isExpanded && tpl.ai_evaluation_criteria && (
+                          {isExpanded && (tpl.practice_prompts?.[practiceName] ?? tpl.ai_evaluation_criteria) && (
                             <div className="px-3 pb-2 pl-8">
                               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 font-mono whitespace-pre-wrap">
-                                {tpl.ai_evaluation_criteria}
+                                {tpl.practice_prompts?.[practiceName] ?? tpl.ai_evaluation_criteria}
                               </div>
                             </div>
                           )}

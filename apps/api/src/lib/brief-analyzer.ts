@@ -216,12 +216,12 @@ export async function analyzeBrief(
     }
 
     // If no practice template found, fall back to all global section templates
-    let sectionTemplates: Array<{ id: string; name: string; description: string | null; ai_evaluation_criteria: string | null }>
+    let sectionTemplates: Array<{ id: string; name: string; description: string | null; ai_evaluation_criteria: string | null; practice_prompts: Record<string, string> | null }>
 
     if (sectionTemplateIds.length > 0) {
       const { data } = await supabaseAdmin
         .from('section_templates')
-        .select('id, name, description, ai_evaluation_criteria')
+        .select('id, name, description, ai_evaluation_criteria, practice_prompts')
         .in('id', sectionTemplateIds)
 
       sectionTemplates = data ?? []
@@ -232,7 +232,7 @@ export async function analyzeBrief(
     } else {
       const { data } = await supabaseAdmin
         .from('section_templates')
-        .select('id, name, description, ai_evaluation_criteria')
+        .select('id, name, description, ai_evaluation_criteria, practice_prompts')
         .or(`organisation_id.is.null,organisation_id.eq.${organisationId}`)
         .limit(20)
 
@@ -243,11 +243,18 @@ export async function analyzeBrief(
       throw new Error('No section templates found for section generation')
     }
 
+    // Use practice-specific prompt when available, falling back to generic criteria
+    const leadPracticeName = leadPractice
+      ? practices.find((p) => p.id === leadPractice.id)?.name
+      : undefined
+
     const sectionsDesc = sectionTemplates
-      .map(
-        (s, i) =>
-          `${i + 1}. ID: ${s.id}\n   Name: ${s.name}\n   Description: ${s.description ?? 'N/A'}\n   Evaluation Criteria: ${s.ai_evaluation_criteria ?? 'N/A'}`,
-      )
+      .map((s, i) => {
+        const criteria = (leadPracticeName && s.practice_prompts?.[leadPracticeName])
+          ?? s.ai_evaluation_criteria
+          ?? 'N/A'
+        return `${i + 1}. ID: ${s.id}\n   Name: ${s.name}\n   Description: ${s.description ?? 'N/A'}\n   Evaluation Criteria: ${criteria}`
+      })
       .join('\n\n')
 
     const genPromptTemplate = await getPrompt(

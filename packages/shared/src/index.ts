@@ -81,6 +81,7 @@ export interface SectionTemplate {
   description: string | null
   category: string | null
   ai_evaluation_criteria: string | null
+  practice_prompts: Record<string, string> | null
   created_at: string
   updated_at: string
 }

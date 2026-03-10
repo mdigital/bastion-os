@@ -150,6 +150,8 @@ export default function PracticeAreasPage() {
                         {pt.sections.map((sec) => {
                           const tpl = sectionTemplates[sec.section_template_id]
                           if (!tpl) return null
+                          const practicePrompt = tpl.practice_prompts?.[practice.name]
+                          const displayPrompt = practicePrompt ?? tpl.ai_evaluation_criteria
                           return (
                             <div
                               key={sec.section_template_id}
@@ -173,13 +175,13 @@ export default function PracticeAreasPage() {
                               {tpl.description && (
                                 <p className="text-sm text-gray-600 mb-2">{tpl.description}</p>
                               )}
-                              {tpl.ai_evaluation_criteria && (
+                              {displayPrompt && (
                                 <div className="mt-2">
                                   <label className="block text-xs font-medium text-gray-500 mb-1">
-                                    AI Evaluation Prompt
+                                    AI Evaluation Prompt{practicePrompt ? ` (${practice.name})` : ''}
                                   </label>
                                   <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700 font-mono whitespace-pre-wrap">
-                                    {tpl.ai_evaluation_criteria}
+                                    {displayPrompt}
                                   </div>
                                 </div>
                               )}

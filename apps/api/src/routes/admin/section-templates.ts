@@ -33,6 +33,7 @@ const sectionTemplateRoutes: FastifyPluginAsync = async (fastify) => {
       description?: string
       category?: string
       ai_evaluation_criteria?: string
+      practice_prompts?: Record<string, string>
     }
   }>(
     '/api/admin/section-templates',
@@ -42,7 +43,7 @@ const sectionTemplateRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.notFound('User has no organisation')
       }
 
-      const { id, name, description, category, ai_evaluation_criteria } =
+      const { id, name, description, category, ai_evaluation_criteria, practice_prompts } =
         request.body
       if (!id || !name) return reply.badRequest('id and name are required')
 
@@ -55,6 +56,7 @@ const sectionTemplateRoutes: FastifyPluginAsync = async (fastify) => {
           description: description ?? null,
           category: category ?? null,
           ai_evaluation_criteria: ai_evaluation_criteria ?? null,
+          practice_prompts: practice_prompts ?? null,
         })
         .select()
         .single()
@@ -72,6 +74,7 @@ const sectionTemplateRoutes: FastifyPluginAsync = async (fastify) => {
       description?: string
       category?: string
       ai_evaluation_criteria?: string
+      practice_prompts?: Record<string, string>
     }
   }>(
     '/api/admin/section-templates/:id',
@@ -82,7 +85,7 @@ const sectionTemplateRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const { id } = request.params
-      const { name, description, category, ai_evaluation_criteria } =
+      const { name, description, category, ai_evaluation_criteria, practice_prompts } =
         request.body
 
       const update: Record<string, unknown> = {}
@@ -91,6 +94,8 @@ const sectionTemplateRoutes: FastifyPluginAsync = async (fastify) => {
       if (category !== undefined) update.category = category
       if (ai_evaluation_criteria !== undefined)
         update.ai_evaluation_criteria = ai_evaluation_criteria
+      if (practice_prompts !== undefined)
+        update.practice_prompts = practice_prompts
 
       // Only allow editing org-specific templates
       const { data, error } = await supabaseAdmin
