@@ -89,23 +89,31 @@ export default function HomePage() {
       setKeyInfo(briefToKeyInfo(brief))
     }
 
-    // Auto-advance to keyInfo step when extraction finishes
-    if (brief.analysis_status === 'extracted' && currentStep === 'upload') {
-      setCurrentStep('keyInfo')
-    }
-
-    // Update triage data
-    if (
+    // Statuses that mean extraction is done (at least)
+    const pastExtraction =
+      brief.analysis_status === 'extracted' ||
+      brief.analysis_status === 'triaging' ||
       brief.analysis_status === 'triaged' ||
       brief.analysis_status === 'generating' ||
       brief.analysis_status === 'ready'
-    ) {
-      // Resolve lead practice name
+
+    // Statuses that mean triage is done (at least)
+    const pastTriage =
+      brief.analysis_status === 'triaged' ||
+      brief.analysis_status === 'generating' ||
+      brief.analysis_status === 'ready'
+
+    // Auto-advance from upload when extraction finishes (or later)
+    if (pastExtraction && currentStep === 'upload') {
+      setCurrentStep(pastTriage ? 'triage' : 'keyInfo')
+    }
+
+    // Update triage data
+    if (pastTriage) {
       if (brief.lead_practice_id && practices.length > 0) {
         const lead = practices.find((p) => p.id === brief.lead_practice_id)
         if (lead) setLeadDepartment(lead.name)
       }
-      // Resolve supporting practice names
       if (brief.supporting_practice_ids?.length && practices.length > 0) {
         const names = brief.supporting_practice_ids
           .map((id) => practices.find((p) => p.id === id)?.name)
@@ -115,15 +123,15 @@ export default function HomePage() {
       setTriageRationale(brief.triage_rationale ?? '')
     }
 
-    // Auto-advance to triage step
-    if (brief.analysis_status === 'triaged' && currentStep === 'keyInfo') {
+    // Auto-advance from keyInfo when triage finishes (or later)
+    if (pastTriage && currentStep === 'keyInfo') {
       setCurrentStep('triage')
     }
 
-    // Update sections when generation completes
+    // Update sections and auto-advance when generation completes
     if (brief.analysis_status === 'ready') {
       setSections(sectionsToSectionData(brief))
-      if (currentStep === 'triage') {
+      if (currentStep === 'upload' || currentStep === 'keyInfo' || currentStep === 'triage') {
         setCurrentStep('sections')
       }
     }
