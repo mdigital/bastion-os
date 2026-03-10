@@ -285,6 +285,10 @@ export async function analyzeBrief(
     const genResult = await gemini.models.generateContent({
       model: 'gemini-2.0-flash',
       contents: [{ role: 'user', parts: [{ text: genPrompt }] }],
+      config: {
+        responseMimeType: 'application/json',
+        maxOutputTokens: 16384,
+      },
     })
 
     const generatedSections = parseJSON<SectionResult[]>(genResult.text ?? '[]')
