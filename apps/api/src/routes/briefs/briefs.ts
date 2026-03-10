@@ -78,7 +78,7 @@ const briefRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   // GET /api/briefs — list briefs for org
-  fastify.get(
+  fastify.get<{ Querystring: { include_archived?: string } }>(
     '/api/briefs',
     { config: { requiredRoles: ['admin', 'manager', 'user'] } },
     async (request, reply) => {
@@ -86,12 +86,17 @@ const briefRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.notFound('User has no organisation')
       }
 
-      const { data, error } = await supabaseAdmin
+      let query = supabaseAdmin
         .from('briefs')
-        .select('*, brief_files(*)')
+        .select('*, brief_files(*), clients(id, name)')
         .eq('organisation_id', request.organisationId)
-        .eq('archived', false)
         .order('created_at', { ascending: false })
+
+      if (request.query.include_archived !== 'true') {
+        query = query.eq('archived', false)
+      }
+
+      const { data, error } = await query
 
       if (error) return reply.internalServerError(error.message)
       return data
@@ -141,6 +146,9 @@ const briefRoutes: FastifyPluginAsync = async (fastify) => {
       brief_level?: 'new_project' | 'fast_forward'
       lead_practice_id?: string | null
       supporting_practice_ids?: string[]
+      client_id?: string | null
+      status?: 'draft' | 'finalized' | 'archived'
+      archived?: boolean
     }
   }>(
     '/api/briefs/:id',
@@ -263,6 +271,32 @@ const briefRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       return reply.code(202).send({ message: 'Brief analysis restarted' })
+    },
+  )
+
+  // POST /api/briefs/:id/archive — archive a brief
+  fastify.post<{ Params: { id: string } }>(
+    '/api/briefs/:id/archive',
+    { config: { requiredRoles: ['admin', 'manager', 'user'] } },
+    async (request, reply) => {
+      if (!request.organisationId) {
+        return reply.notFound('User has no organisation')
+      }
+
+      const { id } = request.params
+
+      const { data, error } = await supabaseAdmin
+        .from('briefs')
+        .update({ archived: true, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('organisation_id', request.organisationId)
+        .select()
+        .single()
+
+      if (error) return reply.internalServerError(error.message)
+      if (!data) return reply.notFound('Brief not found')
+
+      return data
     },
   )
 }

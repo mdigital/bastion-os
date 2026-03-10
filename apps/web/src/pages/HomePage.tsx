@@ -1,5 +1,6 @@
 import type { Step, Practice } from '@bastion-os/shared'
 import { useCallback, useEffect, useState } from 'react'
+import BriefsListingPage from '../components/BriefsListingPage'
 import ClientBriefCard from '../components/ClientBriefCard'
 import DepartmentTriageStep from '../components/DepartmentTriageStep'
 import KeyInformationStep from '../components/KeyInformationStep'
@@ -13,7 +14,7 @@ import type { SectionData } from '../types/SectionData'
 import BriefSectionsStep from '../components/BriefSectionsStep'
 import { apiUploadFile, apiFetch } from '../lib/api'
 import { useBriefPolling } from '../hooks/useBriefPolling'
-import type { BriefWithRelations } from '../hooks/useBriefPolling'
+import type { BriefWithRelations, BriefWithClient } from '../hooks/useBriefPolling'
 
 /** Map DB brief to frontend KeyInfo shape */
 function briefToKeyInfo(brief: BriefWithRelations): KeyInfo {
@@ -64,14 +65,27 @@ export default function HomePage() {
   const [approverComments, setApproverComments] = useState<{
     [key: number]: { comment: string; approverName: string; actioned: boolean }
   }>({})
+  const [allBriefs, setAllBriefs] = useState<BriefWithClient[]>([])
+  const [clients, setClients] = useState<Array<{ id: string; name: string }>>([])
+  const [clientId, setClientId] = useState<string | null>(null)
 
   const { brief, retry } = useBriefPolling(briefId)
 
-  // Fetch practices on mount
+  // Fetch practices, briefs, and clients on mount
+  const fetchBriefs = useCallback(() => {
+    apiFetch<BriefWithClient[]>('/api/briefs?include_archived=true')
+      .then(setAllBriefs)
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     apiFetch<Practice[]>('/api/admin/practices')
       .then(setPractices)
       .catch(() => {}) // silently fail — practices will be empty
+    fetchBriefs()
+    apiFetch<Array<{ id: string; name: string }>>('/api/clients')
+      .then(setClients)
+      .catch(() => {})
   }, [])
 
   // Drive step transitions from brief analysis_status
@@ -126,6 +140,7 @@ export default function HomePage() {
 
   const handleNewBrief = () => {
     setBriefId(null)
+    setClientId(null)
     setKeyInfo({
       client: '',
       jobToBeDone: '',
@@ -224,6 +239,20 @@ export default function HomePage() {
     [briefId, practices],
   )
 
+  const handleClientChange = useCallback(
+    (newClientId: string | null) => {
+      setClientId(newClientId)
+      if (briefId) {
+        apiFetch(`/api/briefs/${briefId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_id: newClientId }),
+        }).catch(() => {})
+      }
+    },
+    [briefId],
+  )
+
   const handleMarkCommentActioned = (sectionIndex: number) => {
     setApproverComments((prev) => ({
       ...prev,
@@ -244,9 +273,23 @@ export default function HomePage() {
               <KnowledgeBaseCard />
             </div>
             <div className="col-span-12 md:col-span-6 flex">
-              <ClientBriefCard onNewBrief={handleNewBrief} />
+              <ClientBriefCard
+                briefs={allBriefs}
+                onNewBrief={handleNewBrief}
+                onViewAll={() => setCurrentView('listing')}
+              />
             </div>
           </div>
+        )}
+
+        {/* Briefs Listing View */}
+        {currentView === 'listing' && (
+          <BriefsListingPage
+            briefs={allBriefs}
+            practices={practices}
+            onNewBrief={handleNewBrief}
+            onRefresh={fetchBriefs}
+          />
         )}
 
         {/* Brief View */}
@@ -278,6 +321,9 @@ export default function HomePage() {
                 }}
                 onEdit={handleKeyInfoEdit}
                 onBack={() => setCurrentStep('upload')}
+                clients={clients}
+                clientId={clientId}
+                onClientChange={handleClientChange}
               />
             )}
             {currentStep === 'triage' && (

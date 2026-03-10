@@ -14,6 +14,9 @@ interface KeyInformationStepProps {
   onNext: () => void
   onEdit: (field: keyof KeyInfo, value: string) => void
   onBack: () => void
+  clients?: Array<{ id: string; name: string }>
+  clientId?: string | null
+  onClientChange?: (clientId: string | null) => void
 }
 
 export default function KeyInformationStep({
@@ -21,9 +24,11 @@ export default function KeyInformationStep({
   onNext,
   onEdit,
   onBack,
+  clients,
+  clientId,
+  onClientChange,
 }: KeyInformationStepProps) {
   const fields = [
-    { key: 'client' as const, label: 'Client', icon: Building2, placeholder: 'Client name' },
     {
       key: 'jobToBeDone' as const,
       label: 'Job to be Done',
@@ -58,6 +63,14 @@ export default function KeyInformationStep({
     },
   ]
 
+  const handleClientSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = e.target.value || null
+    onClientChange?.(selectedId)
+    // Keep display state in sync
+    const selectedClient = clients?.find((c) => c.id === selectedId)
+    onEdit('client', selectedClient?.name ?? '')
+  }
+
   return (
     <div className="mx-auto px-10 py-12">
       <div className="max-w-4xl mx-auto">
@@ -71,6 +84,35 @@ export default function KeyInformationStep({
 
         <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Client dropdown */}
+            <div>
+              <label className="block mb-2 items-center gap-2">
+                <Building2 className="w-4 h-4 text-yellow-400" />
+                <span>Client</span>
+              </label>
+              {clients && onClientChange ? (
+                <select
+                  value={clientId ?? ''}
+                  onChange={handleClientSelect}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-yellow-50"
+                >
+                  <option value="">— Select client —</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={keyInfo.client}
+                  onChange={(e) => onEdit('client', e.target.value)}
+                  placeholder="Client name"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-yellow-50"
+                />
+              )}
+            </div>
+
+            {/* Other fields */}
             {fields.map((field) => (
               <div key={field.key} className={field.key === 'jobToBeDone' ? 'md:col-span-2' : ''}>
                 <label className="block mb-2 items-center gap-2">

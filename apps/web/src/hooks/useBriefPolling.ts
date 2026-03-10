@@ -7,6 +7,11 @@ export interface BriefWithRelations extends Brief {
   brief_files: BriefFile[]
 }
 
+export interface BriefWithClient extends Brief {
+  brief_files: BriefFile[]
+  clients: { id: string; name: string } | null
+}
+
 const TERMINAL_STATUSES: BriefAnalysisStatus[] = [
   'ready',
   'extract_failed',

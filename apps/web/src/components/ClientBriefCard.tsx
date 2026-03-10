@@ -1,13 +1,23 @@
 import { FileText } from 'lucide-react'
 import ClientBriefItem from './ClientBriefItem'
-import { clientBriefs } from '../data/mockData'
+import type { BriefWithClient } from '../hooks/useBriefPolling'
 
-type Props = {
-  onNewBrief: () => void
+const STATUS_DOT: Record<string, string> = {
+  draft: 'bg-yellow-400',
+  finalized: 'bg-green-400',
+  archived: 'bg-gray-400',
 }
 
-export default function ClientBriefCard({ onNewBrief }: Props) {
-  const visibleBriefs = clientBriefs.slice(0, 3)
+type Props = {
+  briefs: BriefWithClient[]
+  onNewBrief: () => void
+  onViewAll: () => void
+}
+
+export default function ClientBriefCard({ briefs, onNewBrief, onViewAll }: Props) {
+  const sorted = [...briefs]
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .slice(0, 3)
 
   return (
     <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all group flex-1 flex flex-col">
@@ -30,26 +40,30 @@ export default function ClientBriefCard({ onNewBrief }: Props) {
       </button>
 
       <div className="space-y-3 mb-4">
-        {visibleBriefs.map((brief) => (
+        {sorted.map((brief) => (
           <ClientBriefItem
             key={brief.id}
-            clientName={brief.clientName}
-            briefTitle={brief.briefTitle}
+            clientName={brief.clients?.name ?? 'No client'}
+            briefTitle={brief.job_to_be_done ?? 'Untitled brief'}
             status={brief.status}
-            dotColorClass={brief.dotColorClass}
+            dotColorClass={STATUS_DOT[brief.status] ?? 'bg-gray-400'}
           />
         ))}
+        {sorted.length === 0 && (
+          <p className="text-sm text-gray-500 text-center py-4">No briefs yet</p>
+        )}
       </div>
 
       <button
         type="button"
         className="w-full py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium"
+        onClick={onViewAll}
       >
         View all briefs
       </button>
 
       <div className="mt-4 pt-4 border-t border-gray-200">
-        <p className="text-sm text-gray-600">12 briefs enhanced this month</p>
+        <p className="text-sm text-gray-600">{briefs.length} brief{briefs.length !== 1 ? 's' : ''} total</p>
       </div>
     </div>
   )

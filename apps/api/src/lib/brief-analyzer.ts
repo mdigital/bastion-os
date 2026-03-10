@@ -237,11 +237,36 @@ export async function analyzeBrief(
     // Fetch the practice template for the lead practice + brief level
     const { data: brief } = await supabaseAdmin
       .from('briefs')
-      .select('brief_level')
+      .select('brief_level, client_id')
       .eq('id', briefId)
       .single()
 
     const briefLevel = brief?.brief_level ?? 'new_project'
+
+    // Fetch KB sources if client_id is set
+    let kbContext = ''
+    if (brief?.client_id) {
+      const { data: kbSources } = await supabaseAdmin
+        .from('client_sources')
+        .select('file_name, digest_summary')
+        .eq('client_id', brief.client_id)
+        .eq('digest_status', 'ready')
+        .is('deleted_at', null)
+
+      if (kbSources?.length) {
+        const kbDocuments = kbSources
+          .map((s) => `### ${s.file_name}\n${s.digest_summary ?? '(no summary)'}`)
+          .join('\n\n')
+
+        const kbPromptTemplate = await getPrompt(
+          'brief-kb-context',
+          'The following documents from the client\'s knowledge base are provided as supporting material. Use them to enrich section content, identify brand guidelines, rules, tone of voice, and any relevant constraints. Do not fabricate information beyond what these documents contain.\n\n{{kb_documents}}',
+        )
+
+        kbContext = kbPromptTemplate.replace('{{kb_documents}}', kbDocuments)
+        logger.info({ briefId, kbSourceCount: kbSources.length }, 'KB context loaded for section generation')
+      }
+    }
 
     let sectionTemplateIds: string[] = []
 
@@ -310,6 +335,7 @@ export async function analyzeBrief(
       .replace('{{brief_text}}', fullText)
       .replace('{{key_info}}', keyInfoSummary)
       .replace('{{sections}}', sectionsDesc)
+      .replace('{{knowledge_base}}', kbContext)
 
     await sleep(delayMs)
 
