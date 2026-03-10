@@ -14,7 +14,6 @@ import BriefSectionsStep from '../components/BriefSectionsStep'
 import { apiUploadFile, apiFetch } from '../lib/api'
 import { useBriefPolling } from '../hooks/useBriefPolling'
 import type { BriefWithRelations } from '../hooks/useBriefPolling'
-import { Loader2, AlertCircle, RotateCcw } from 'lucide-react'
 
 /** Map DB brief to frontend KeyInfo shape */
 function briefToKeyInfo(brief: BriefWithRelations): KeyInfo {
@@ -41,10 +40,6 @@ function sectionsToSectionData(brief: BriefWithRelations): SectionData[] {
   }))
 }
 
-// Analysis states that indicate "still processing"
-const PROCESSING_STATUSES = ['pending', 'extracting', 'triaging', 'generating']
-const FAILED_STATUSES = ['extract_failed', 'triage_failed', 'sections_failed']
-
 export default function HomePage() {
   const [keyInfo, setKeyInfo] = useState<KeyInfo>({
     client: '',
@@ -70,7 +65,7 @@ export default function HomePage() {
     [key: number]: { comment: string; approverName: string; actioned: boolean }
   }>({})
 
-  const { brief, isPolling, retry } = useBriefPolling(briefId)
+  const { brief, retry } = useBriefPolling(briefId)
 
   // Fetch practices on mount
   useEffect(() => {
@@ -244,9 +239,6 @@ export default function HomePage() {
     }))
   }
 
-  const isProcessing = brief && PROCESSING_STATUSES.includes(brief.analysis_status)
-  const isFailed = brief && FAILED_STATUSES.includes(brief.analysis_status)
-
   return (
     <Layout>
       <>
@@ -267,44 +259,16 @@ export default function HomePage() {
           <>
             <ProgressSteps currentStep={currentStep} setCurrentStep={setCurrentStep} />
 
-            {/* Processing Indicator */}
-            {isPolling && isProcessing && currentStep !== 'upload' && (
-              <div className="max-w-2xl mx-auto px-8 mb-4">
-                <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <Loader2 className="w-5 h-5 text-yellow-600 animate-spin" />
-                  <span className="text-sm text-yellow-800">
-                    {brief.analysis_status === 'extracting' && 'Extracting text from document...'}
-                    {brief.analysis_status === 'triaging' && 'Analysing practice area fit...'}
-                    {brief.analysis_status === 'generating' && 'Generating enriched sections...'}
-                    {brief.analysis_status === 'pending' && 'Starting analysis...'}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Error State */}
-            {isFailed && (
-              <div className="max-w-2xl mx-auto px-8 mb-4">
-                <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600" />
-                    <span className="text-sm text-red-800">
-                      Analysis failed: {brief.analysis_error ?? 'Unknown error'}
-                    </span>
-                  </div>
-                  <button
-                    onClick={retry}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Retry
-                  </button>
-                </div>
-              </div>
-            )}
-
             {currentStep === 'upload' && (
-              <UploadStep onUpload={handleFileUpload} isUploading={isUploading} uploadError={uploadError} />
+              <UploadStep
+                onUpload={handleFileUpload}
+                isUploading={isUploading}
+                uploadError={uploadError}
+                analysisStatus={brief?.analysis_status ?? null}
+                briefId={briefId}
+                analysisError={brief?.analysis_error ?? null}
+                onRetry={retry}
+              />
             )}
             {currentStep === 'keyInfo' && keyInfo && (
               <KeyInformationStep

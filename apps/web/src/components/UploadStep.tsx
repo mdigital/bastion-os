@@ -1,13 +1,27 @@
-import { Upload, FileText, Image, Type, Loader2 } from 'lucide-react'
+import type { BriefAnalysisStatus } from '@bastion-os/shared'
+import { Upload, FileText, Image, Type } from 'lucide-react'
 import { useState } from 'react'
+import AnalysisProgress from './AnalysisProgress'
 
 interface UploadStepProps {
   onUpload: (file: File) => void
   isUploading?: boolean
   uploadError?: string | null
+  analysisStatus?: BriefAnalysisStatus | null
+  briefId?: string | null
+  analysisError?: string | null
+  onRetry?: () => void
 }
 
-export default function UploadStep({ onUpload, isUploading, uploadError }: UploadStepProps) {
+export default function UploadStep({
+  onUpload,
+  isUploading,
+  uploadError,
+  analysisStatus,
+  briefId,
+  analysisError,
+  onRetry,
+}: UploadStepProps) {
   const [pastedText, setPastedText] = useState('')
   const [uploadMethod, setUploadMethod] = useState<'file' | 'text'>('file')
 
@@ -51,6 +65,18 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
     }
   }
 
+  // Show progress component once upload has started or brief exists
+  if (isUploading || briefId) {
+    return (
+      <AnalysisProgress
+        analysisStatus={analysisStatus ?? null}
+        isUploading={!!isUploading}
+        error={analysisError ?? uploadError ?? null}
+        onRetry={onRetry ?? (() => {})}
+      />
+    )
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-8 py-12">
       <div className="col-span-12 md:col-span-8 md:col-start-3">
@@ -89,13 +115,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
           </div>
         )}
 
-        {isUploading ? (
-          <div className="border-4 border-dashed border-yellow-300 rounded-2xl p-16 text-center bg-yellow-50">
-            <Loader2 className="w-16 h-16 mx-auto mb-6 text-yellow-400 animate-spin" />
-            <h3 className="mb-2">Uploading & analysing your brief...</h3>
-            <p className="text-gray-600">This may take a moment</p>
-          </div>
-        ) : uploadMethod === 'file' ? (
+        {uploadMethod === 'file' ? (
           <>
             <div
               onDrop={handleDrop}
