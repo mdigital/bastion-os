@@ -1,4 +1,4 @@
-import { ArrowLeft, Briefcase, Building2, Calendar, DollarSign, Sparkles } from 'lucide-react'
+import { ArrowLeft, Briefcase, Building2, Calendar, Clock, DollarSign, Radio, Sparkles } from 'lucide-react'
 
 interface KeyInfo {
   client: string
@@ -42,6 +42,19 @@ export default function KeyInformationStep({
       icon: Calendar,
       placeholder: 'YYYY-MM-DD',
       type: 'date',
+    },
+    {
+      key: 'liveDate' as const,
+      label: 'Live Date',
+      icon: Radio,
+      placeholder: 'YYYY-MM-DD',
+      type: 'date',
+    },
+    {
+      key: 'campaignDuration' as const,
+      label: 'Campaign Duration',
+      icon: Clock,
+      placeholder: 'e.g. 6 weeks',
     },
   ]
 

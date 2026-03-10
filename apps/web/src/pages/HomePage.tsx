@@ -75,19 +75,9 @@ export default function HomePage() {
   }, [])
 
   // Drive step transitions from brief analysis_status
+  // Only auto-advance: upload → keyInfo. All other transitions require user clicking "Continue".
   useEffect(() => {
     if (!brief) return
-
-    // Update key info when extraction completes
-    if (
-      brief.analysis_status === 'extracted' ||
-      brief.analysis_status === 'triaging' ||
-      brief.analysis_status === 'triaged' ||
-      brief.analysis_status === 'generating' ||
-      brief.analysis_status === 'ready'
-    ) {
-      setKeyInfo(briefToKeyInfo(brief))
-    }
 
     // Statuses that mean extraction is done (at least)
     const pastExtraction =
@@ -103,12 +93,12 @@ export default function HomePage() {
       brief.analysis_status === 'generating' ||
       brief.analysis_status === 'ready'
 
-    // Auto-advance from upload when extraction finishes (or later)
-    if (pastExtraction && currentStep === 'upload') {
-      setCurrentStep(pastTriage ? 'triage' : 'keyInfo')
+    // Update key info whenever extraction data is available
+    if (pastExtraction) {
+      setKeyInfo(briefToKeyInfo(brief))
     }
 
-    // Update triage data
+    // Update triage data in the background
     if (pastTriage) {
       if (brief.lead_practice_id && practices.length > 0) {
         const lead = practices.find((p) => p.id === brief.lead_practice_id)
@@ -123,17 +113,14 @@ export default function HomePage() {
       setTriageRationale(brief.triage_rationale ?? '')
     }
 
-    // Auto-advance from keyInfo when triage finishes (or later)
-    if (pastTriage && currentStep === 'keyInfo') {
-      setCurrentStep('triage')
-    }
-
-    // Update sections and auto-advance when generation completes
+    // Update sections data in the background
     if (brief.analysis_status === 'ready') {
       setSections(sectionsToSectionData(brief))
-      if (currentStep === 'upload' || currentStep === 'keyInfo' || currentStep === 'triage') {
-        setCurrentStep('sections')
-      }
+    }
+
+    // Only auto-advance from upload → keyInfo once extraction completes
+    if (pastExtraction && currentStep === 'upload') {
+      setCurrentStep('keyInfo')
     }
   }, [brief, practices, currentStep])
 
