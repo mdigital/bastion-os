@@ -10,6 +10,9 @@ const BRIEF_LEVEL_LABELS: Record<string, string> = {
   fast_forward: 'Fast Forward',
 }
 
+// Key: "sectionTemplateId:practiceName"
+type EditingKey = string
+
 export default function PracticeAreasPage() {
   const [practices, setPractices] = useState<Practice[]>([])
   const [templates, setTemplates] = useState<Record<string, PracticeTemplate[]>>({})
@@ -19,6 +22,9 @@ export default function PracticeAreasPage() {
   const [error, setError] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [addTemplateFor, setAddTemplateFor] = useState<string | null>(null)
+  const [editing, setEditing] = useState<EditingKey | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +62,34 @@ export default function PracticeAreasPage() {
 
   function toggle(id: string) {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  function startEditing(tpl: SectionTemplate, practiceName: string) {
+    const key = `${tpl.id}:${practiceName}`
+    setEditing(key)
+    setEditValue(tpl.practice_prompts?.[practiceName] ?? tpl.ai_evaluation_criteria ?? '')
+  }
+
+  async function savePrompt(tpl: SectionTemplate, practiceName: string) {
+    setSaving(true)
+    try {
+      const updatedPrompts = { ...tpl.practice_prompts, [practiceName]: editValue }
+      await apiFetch(`/api/admin/section-templates/${tpl.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ practice_prompts: updatedPrompts }),
+      })
+      // Update local state
+      setSectionTemplates((prev) => ({
+        ...prev,
+        [tpl.id]: { ...tpl, practice_prompts: updatedPrompts },
+      }))
+      setEditing(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save prompt')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -150,6 +184,8 @@ export default function PracticeAreasPage() {
                         {pt.sections.map((sec) => {
                           const tpl = sectionTemplates[sec.section_template_id]
                           if (!tpl) return null
+                          const editKey = `${tpl.id}:${practice.name}`
+                          const isEditing = editing === editKey
                           const practicePrompt = tpl.practice_prompts?.[practice.name]
                           const displayPrompt = practicePrompt ?? tpl.ai_evaluation_criteria
                           return (
@@ -175,16 +211,46 @@ export default function PracticeAreasPage() {
                               {tpl.description && (
                                 <p className="text-sm text-gray-600 mb-2">{tpl.description}</p>
                               )}
-                              {displayPrompt && (
-                                <div className="mt-2">
-                                  <label className="block text-xs font-medium text-gray-500 mb-1">
-                                    AI Evaluation Prompt{practicePrompt ? ` (${practice.name})` : ''}
-                                  </label>
-                                  <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700 font-mono whitespace-pre-wrap">
-                                    {displayPrompt}
+                              <div className="mt-2">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                  AI Evaluation Prompt ({practice.name})
+                                </label>
+                                {isEditing ? (
+                                  <div>
+                                    <textarea
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      rows={6}
+                                      className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-700 font-mono focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-y"
+                                    />
+                                    <div className="flex gap-2 mt-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => savePrompt(tpl, practice.name)}
+                                        disabled={saving}
+                                        className="px-3 py-1.5 text-xs font-medium bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                                      >
+                                        {saving ? 'Saving...' : 'Save'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditing(null)}
+                                        className="px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                ) : (
+                                  <div
+                                    onClick={() => startEditing(tpl, practice.name)}
+                                    className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700 font-mono whitespace-pre-wrap cursor-pointer hover:border-gray-400 transition-colors"
+                                    title="Click to edit"
+                                  >
+                                    {displayPrompt || <span className="text-gray-400 italic">No prompt — click to add</span>}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )
                         })}

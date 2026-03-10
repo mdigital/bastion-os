@@ -11,6 +11,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage.tsx'
 import AdminPage from './pages/AdminPage.tsx'
 import PracticeAreasPage from './pages/PracticeAreasPage.tsx'
 import PromptsPage from './pages/PromptsPage.tsx'
+import SettingsPage from './pages/SettingsPage.tsx'
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
               <Route index element={<Navigate to="prompts" replace />} />
               <Route path="prompts" element={<PromptsPage />} />
               <Route path="practice-areas" element={<PracticeAreasPage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

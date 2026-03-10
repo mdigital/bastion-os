@@ -3,6 +3,8 @@ import { gemini } from './gemini.js'
 import { getPrompt } from './prompts.js'
 import { supabaseAdmin } from './supabase.js'
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 /** Strip markdown code fences and sanitize control characters in JSON strings. */
 function parseJSON<T>(text: string): T {
   const stripped = text
@@ -65,6 +67,16 @@ export async function analyzeBrief(
 ): Promise<void> {
   let geminiFileName: string | undefined
 
+  // Fetch org-level Gemini delay setting
+  const { data: orgData } = await supabaseAdmin
+    .from('organisations')
+    .select('settings')
+    .eq('id', organisationId)
+    .single()
+
+  const geminiDelayMs = (orgData?.settings as Record<string, unknown> | null)?.gemini_delay_ms
+  const delayMs = typeof geminiDelayMs === 'number' && geminiDelayMs > 0 ? geminiDelayMs : 1000
+
   try {
     // ── Step 1: Extract text + key info ────────────────────────────────────
     await supabaseAdmin
@@ -88,6 +100,9 @@ export async function analyzeBrief(
       'brief-extract-text',
       'Extract the complete text content from this document and convert it to well-structured Markdown. Preserve all headings, lists, tables, and formatting. Include all text content — do not summarise or omit anything. Output only the Markdown content, no preamble.',
     )
+
+    logger.info({ briefId, delayMs }, 'Gemini delay: %dms before text extraction', delayMs)
+    await sleep(delayMs)
 
     const extractResult = await gemini.models.generateContent({
       model: 'gemini-2.0-flash',
@@ -117,6 +132,8 @@ export async function analyzeBrief(
     )
 
     const keyInfoPrompt = keyInfoPromptTemplate.replace('{{brief_text}}', fullText)
+
+    await sleep(delayMs)
 
     const keyInfoResult = await gemini.models.generateContent({
       model: 'gemini-2.0-flash',
@@ -171,6 +188,8 @@ export async function analyzeBrief(
       .replace('{{practices}}', practiceList)
       .replace('{{brief_text}}', fullText)
       .replace('{{key_info}}', keyInfoSummary)
+
+    await sleep(delayMs)
 
     const triageResult = await gemini.models.generateContent({
       model: 'gemini-2.0-flash',
@@ -281,6 +300,8 @@ export async function analyzeBrief(
       .replace('{{brief_text}}', fullText)
       .replace('{{key_info}}', keyInfoSummary)
       .replace('{{sections}}', sectionsDesc)
+
+    await sleep(delayMs)
 
     const genResult = await gemini.models.generateContent({
       model: 'gemini-2.0-flash',

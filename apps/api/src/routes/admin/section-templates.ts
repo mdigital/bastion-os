@@ -97,7 +97,35 @@ const sectionTemplateRoutes: FastifyPluginAsync = async (fastify) => {
       if (practice_prompts !== undefined)
         update.practice_prompts = practice_prompts
 
-      // Only allow editing org-specific templates
+      // Check if this is a global template (null org_id)
+      const { data: existing } = await supabaseAdmin
+        .from('section_templates')
+        .select('organisation_id')
+        .eq('id', id)
+        .single()
+
+      if (!existing) return reply.notFound('Template not found')
+
+      if (existing.organisation_id === null) {
+        // Global template: only allow practice_prompts updates
+        if (practice_prompts === undefined) {
+          return reply.badRequest('Only practice_prompts can be updated on global templates')
+        }
+        const globalUpdate: Record<string, unknown> = { practice_prompts }
+
+        const { data, error } = await supabaseAdmin
+          .from('section_templates')
+          .update(globalUpdate)
+          .eq('id', id)
+          .is('organisation_id', null)
+          .select()
+          .single()
+
+        if (error) return reply.internalServerError(error.message)
+        return data
+      }
+
+      // Org-specific template: allow all fields
       const { data, error } = await supabaseAdmin
         .from('section_templates')
         .update(update)
@@ -107,7 +135,7 @@ const sectionTemplateRoutes: FastifyPluginAsync = async (fastify) => {
         .single()
 
       if (error) return reply.internalServerError(error.message)
-      if (!data) return reply.notFound('Template not found or is a global template')
+      if (!data) return reply.notFound('Template not found or not owned by your organisation')
       return data
     },
   )

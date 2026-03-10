@@ -45,6 +45,9 @@ export default function AdminPage() {
         <NavLink to="/admin/practice-areas" className={tabClass}>
           Practice Areas
         </NavLink>
+        <NavLink to="/admin/settings" className={tabClass}>
+          Settings
+        </NavLink>
       </nav>
 
       <Outlet />
