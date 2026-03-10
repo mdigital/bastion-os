@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../../lib/supabase.js'
 import { gemini } from '../../lib/gemini.js'
 import { getPrompt } from '../../lib/prompts.js'
+import { withRetry } from '../../lib/retry.js'
 
 const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/kb/clients/:clientId/conversations
@@ -250,15 +251,18 @@ const kbChatRoutes: FastifyPluginAsync = async (fastify) => {
       let fullText = ''
 
       try {
-        const stream = await gemini.models.generateContentStream({
-          model: 'gemini-2.0-flash',
-          config: { systemInstruction },
-          contents: [
-            ...contextMessages,
-            ...historyMessages,
-            { role: 'user', parts: [{ text: content }] },
-          ],
-        })
+        const stream = await withRetry(
+          () => gemini.models.generateContentStream({
+            model: 'gemini-2.0-flash',
+            config: { systemInstruction },
+            contents: [
+              ...contextMessages,
+              ...historyMessages,
+              { role: 'user', parts: [{ text: content }] },
+            ],
+          }),
+          { logger: fastify.log, label: 'kb-chat-stream' },
+        )
 
         for await (const chunk of stream) {
           const text = chunk.text ?? ''

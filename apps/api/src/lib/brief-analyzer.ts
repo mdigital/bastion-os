@@ -1,6 +1,7 @@
 import type { FastifyBaseLogger } from 'fastify'
 import { gemini } from './gemini.js'
 import { getPrompt } from './prompts.js'
+import { withRetry } from './retry.js'
 import { supabaseAdmin } from './supabase.js'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -104,18 +105,21 @@ export async function analyzeBrief(
     logger.info({ briefId, delayMs }, 'Gemini delay: %dms before text extraction', delayMs)
     await sleep(delayMs)
 
-    const extractResult = await gemini.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { fileData: { fileUri: geminiFile.uri, mimeType } },
-            { text: extractPrompt },
-          ],
-        },
-      ],
-    })
+    const extractResult = await withRetry(
+      () => gemini.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { fileData: { fileUri: geminiFile.uri, mimeType } },
+              { text: extractPrompt },
+            ],
+          },
+        ],
+      }),
+      { logger, label: 'extract-text' },
+    )
 
     const fullText = extractResult.text ?? ''
 
@@ -135,10 +139,13 @@ export async function analyzeBrief(
 
     await sleep(delayMs)
 
-    const keyInfoResult = await gemini.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [{ role: 'user', parts: [{ text: keyInfoPrompt }] }],
-    })
+    const keyInfoResult = await withRetry(
+      () => gemini.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [{ role: 'user', parts: [{ text: keyInfoPrompt }] }],
+      }),
+      { logger, label: 'extract-keyinfo' },
+    )
 
     const keyInfo = parseJSON<KeyInfoResult>(keyInfoResult.text ?? '{}')
 
@@ -191,10 +198,13 @@ export async function analyzeBrief(
 
     await sleep(delayMs)
 
-    const triageResult = await gemini.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [{ role: 'user', parts: [{ text: triagePrompt }] }],
-    })
+    const triageResult = await withRetry(
+      () => gemini.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [{ role: 'user', parts: [{ text: triagePrompt }] }],
+      }),
+      { logger, label: 'triage-practice' },
+    )
 
     const triage = parseJSON<TriageResult>(triageResult.text ?? '{}')
 
@@ -303,14 +313,17 @@ export async function analyzeBrief(
 
     await sleep(delayMs)
 
-    const genResult = await gemini.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [{ role: 'user', parts: [{ text: genPrompt }] }],
-      config: {
-        responseMimeType: 'application/json',
-        maxOutputTokens: 16384,
-      },
-    })
+    const genResult = await withRetry(
+      () => gemini.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [{ role: 'user', parts: [{ text: genPrompt }] }],
+        config: {
+          responseMimeType: 'application/json',
+          maxOutputTokens: 16384,
+        },
+      }),
+      { logger, label: 'generate-sections' },
+    )
 
     const generatedSections = parseJSON<SectionResult[]>(genResult.text ?? '[]')
 

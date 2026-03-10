@@ -1,6 +1,7 @@
 import type { FastifyBaseLogger } from 'fastify'
 import { gemini } from './gemini.js'
 import { getPrompt } from './prompts.js'
+import { withRetry } from './retry.js'
 import { supabaseAdmin } from './supabase.js'
 
 /**
@@ -37,18 +38,21 @@ export async function generateDigest(
       'Extract the complete text content from this document and convert it to well-structured Markdown. Preserve all headings, lists, tables, and formatting. Include all text content — do not summarise or omit anything. Output only the Markdown content, no preamble.',
     )
 
-    const extractResult = await gemini.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { fileData: { fileUri: geminiFile.uri, mimeType } },
-            { text: extractPrompt },
-          ],
-        },
-      ],
-    })
+    const extractResult = await withRetry(
+      () => gemini.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { fileData: { fileUri: geminiFile.uri, mimeType } },
+              { text: extractPrompt },
+            ],
+          },
+        ],
+      }),
+      { logger, label: 'digest-extract' },
+    )
 
     const fullText = extractResult.text ?? ''
 
@@ -63,15 +67,18 @@ export async function generateDigest(
       'Create a structured Markdown summary of this document that captures: 1) Document type and purpose, 2) Key topics and themes, 3) Important facts, figures, and data points, 4) Key conclusions or recommendations, 5) Any dates, deadlines, or timelines. Target 500-1000 words. Be comprehensive but concise. Output only the Markdown summary, no preamble.',
     )
 
-    const summaryResult = await gemini.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: `${summaryPrompt}\n\n---\n\n${fullText}` }],
-        },
-      ],
-    })
+    const summaryResult = await withRetry(
+      () => gemini.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `${summaryPrompt}\n\n---\n\n${fullText}` }],
+          },
+        ],
+      }),
+      { logger, label: 'digest-summary' },
+    )
 
     const summary = summaryResult.text ?? ''
 
