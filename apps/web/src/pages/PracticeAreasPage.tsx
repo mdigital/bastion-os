@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import type { Practice, PracticeTemplate, SectionTemplate } from '@bastion-os/shared'
 import { apiFetch } from '../lib/api.ts'
 import AddPracticeAreaModal from '../components/AddPracticeAreaModal.tsx'
+import AddPracticeTemplateModal from '../components/AddPracticeTemplateModal.tsx'
 
 const BRIEF_LEVEL_LABELS: Record<string, string> = {
   new_project: 'New Project',
@@ -17,6 +18,7 @@ export default function PracticeAreasPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [addTemplateFor, setAddTemplateFor] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -115,6 +117,27 @@ export default function PracticeAreasPage() {
 
             {isOpen && (
               <div className="border-t border-gray-100 px-5 pb-5">
+                <div className="flex justify-end pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setAddTemplateFor(practice.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Template
+                  </button>
+                </div>
+
+                <AddPracticeTemplateModal
+                  isOpen={addTemplateFor === practice.id}
+                  onClose={() => setAddTemplateFor(null)}
+                  onTemplateAdded={load}
+                  practiceId={practice.id}
+                  practiceName={practice.name}
+                  existingBriefLevels={pts.map((pt) => pt.brief_level)}
+                  sectionTemplates={sectionTemplates}
+                />
+
                 {pts.length === 0 ? (
                   <p className="text-sm text-gray-400 py-3">No templates configured for this practice.</p>
                 ) : (
