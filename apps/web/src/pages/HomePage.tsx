@@ -138,6 +138,40 @@ export default function HomePage() {
     }
   }, [brief, practices, currentStep])
 
+  const handleBriefSelect = useCallback(
+    (selectedBriefId: string) => {
+      // Find the brief in allBriefs to determine starting step and client
+      const selected = allBriefs.find((b) => b.id === selectedBriefId)
+
+      // Determine starting step based on analysis_status
+      let startStep: Step = 'upload'
+      if (selected) {
+        switch (selected.analysis_status) {
+          case 'ready':
+            startStep = 'sections'
+            break
+          case 'triaged':
+          case 'generating':
+            startStep = 'triage'
+            break
+          case 'extracted':
+          case 'triaging':
+            startStep = 'keyInfo'
+            break
+          default:
+            // pending, extracting, *_failed → upload
+            startStep = 'upload'
+        }
+      }
+
+      setBriefId(selectedBriefId)
+      setClientId(selected?.client_id ?? null)
+      setCurrentStep(startStep)
+      setCurrentView('brief')
+    },
+    [allBriefs, setCurrentView],
+  )
+
   const handleNewBrief = () => {
     setBriefId(null)
     setClientId(null)
@@ -277,6 +311,7 @@ export default function HomePage() {
                 briefs={allBriefs}
                 onNewBrief={handleNewBrief}
                 onViewAll={() => setCurrentView('listing')}
+                onBriefSelect={handleBriefSelect}
               />
             </div>
           </div>
@@ -289,6 +324,7 @@ export default function HomePage() {
             practices={practices}
             onNewBrief={handleNewBrief}
             onRefresh={fetchBriefs}
+            onBriefSelect={handleBriefSelect}
           />
         )}
 

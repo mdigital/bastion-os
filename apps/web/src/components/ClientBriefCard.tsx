@@ -12,9 +12,10 @@ type Props = {
   briefs: BriefWithClient[]
   onNewBrief: () => void
   onViewAll: () => void
+  onBriefSelect?: (briefId: string) => void
 }
 
-export default function ClientBriefCard({ briefs, onNewBrief, onViewAll }: Props) {
+export default function ClientBriefCard({ briefs, onNewBrief, onViewAll, onBriefSelect }: Props) {
   const sorted = [...briefs]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     .slice(0, 3)
@@ -47,6 +48,7 @@ export default function ClientBriefCard({ briefs, onNewBrief, onViewAll }: Props
             briefTitle={brief.job_to_be_done ?? 'Untitled brief'}
             status={brief.status}
             dotColorClass={STATUS_DOT[brief.status] ?? 'bg-gray-400'}
+            onClick={onBriefSelect ? () => onBriefSelect(brief.id) : undefined}
           />
         ))}
         {sorted.length === 0 && (

@@ -3,6 +3,7 @@ type ClientBriefItemProps = {
   briefTitle: string
   status: string
   dotColorClass: string
+  onClick?: () => void
 }
 
 export default function ClientBriefItem({
@@ -10,9 +11,10 @@ export default function ClientBriefItem({
   briefTitle,
   status,
   dotColorClass,
+  onClick,
 }: ClientBriefItemProps) {
   return (
-    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+    <div onClick={onClick} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
       <div className="flex items-center gap-3">
         <div className={`w-2 h-2 rounded-full ${dotColorClass}`} />
         <div>

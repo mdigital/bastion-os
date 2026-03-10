@@ -33,9 +33,10 @@ type Props = {
   practices: Practice[]
   onNewBrief: () => void
   onRefresh: () => void
+  onBriefSelect?: (briefId: string) => void
 }
 
-export default function BriefsListingPage({ briefs, practices, onNewBrief, onRefresh }: Props) {
+export default function BriefsListingPage({ briefs, practices, onNewBrief, onRefresh, onBriefSelect }: Props) {
   const [search, setSearch] = useState('')
   const [clientFilter, setClientFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -187,7 +188,7 @@ export default function BriefsListingPage({ briefs, practices, onNewBrief, onRef
             </thead>
             <tbody>
               {paged.map((brief) => (
-                <tr key={brief.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr key={brief.id} onClick={() => onBriefSelect?.(brief.id)} className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
                   <td className="px-6 py-4 font-medium">{brief.clients?.name ?? '—'}</td>
                   <td className="px-6 py-4 max-w-[300px] truncate">{brief.job_to_be_done ?? '—'}</td>
                   <td className="px-6 py-4">{formatCurrency(brief.budget)}</td>
@@ -202,7 +203,7 @@ export default function BriefsListingPage({ briefs, practices, onNewBrief, onRef
                   <td className="px-6 py-4">
                     {!brief.archived && (
                       <button
-                        onClick={() => handleArchive(brief.id)}
+                        onClick={(e) => { e.stopPropagation(); handleArchive(brief.id) }}
                         className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded"
                         title="Archive brief"
                       >
