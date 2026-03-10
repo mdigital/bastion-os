@@ -3,13 +3,28 @@ import { gemini } from './gemini.js'
 import { getPrompt } from './prompts.js'
 import { supabaseAdmin } from './supabase.js'
 
-/** Strip markdown code fences that Gemini sometimes wraps around JSON output. */
+/** Strip markdown code fences and sanitize control characters in JSON strings. */
 function parseJSON<T>(text: string): T {
   const stripped = text
     .replace(/^```(?:json)?\s*\n?/, '')
     .replace(/\n?```\s*$/, '')
     .trim()
-  return JSON.parse(stripped) as T
+
+  // Gemini sometimes emits literal control characters inside JSON string values.
+  // Replace them with safe escape sequences so JSON.parse doesn't choke.
+  const sanitized = stripped.replace(
+    /"(?:[^"\\]|\\.)*"/g,
+    (match) => match.replace(/[\x00-\x1f]/g, (ch) => {
+      switch (ch) {
+        case '\n': return '\\n'
+        case '\r': return '\\r'
+        case '\t': return '\\t'
+        default: return `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`
+      }
+    }),
+  )
+
+  return JSON.parse(sanitized) as T
 }
 
 interface KeyInfoResult {
