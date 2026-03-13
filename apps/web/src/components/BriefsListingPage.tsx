@@ -1,7 +1,16 @@
 import { useState, useMemo } from 'react'
 import type { Practice } from '@bastion-os/shared'
 import type { BriefWithClient } from '../hooks/useBriefPolling'
-import { Search, Plus, Archive, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Search,
+  Plus,
+  Archive,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  DollarSign,
+  Calendar,
+} from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
 const PAGE_SIZE = 20
@@ -216,14 +225,25 @@ export default function BriefsListingPage({
                   onClick={() => onBriefSelect?.(brief.id)}
                   className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
                 >
-                  <td className="px-6 py-4 font-medium">{brief.clients?.name ?? '—'}</td>
-                  <td className="px-6 py-4 max-w-[300px] truncate">
-                    {brief.job_to_be_done ?? '—'}
+                  <td className="px-6 py-4 font-medium flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-400" />
+                    {brief.clients?.name ?? '—'}
                   </td>
-                  <td className="px-6 py-4">{formatCurrency(brief.budget)}</td>
-                  <td className="px-6 py-4">{formatDate(brief.due_date)}</td>
+                  <td className="px-6 py-4 max-w-75 truncate">{brief.job_to_be_done ?? '—'}</td>
+                  <td className="px-6 py-4 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-gray-400" />
+                    {formatCurrency(brief.budget)}
+                  </td>
                   <td className="px-6 py-4">
-                    {brief.lead_practice_id ? (practiceMap[brief.lead_practice_id] ?? '—') : '—'}
+                    <span className="inline-block align-middle mr-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                    </span>
+                    <span className="align-middle">{formatDate(brief.due_date)}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="inline-block px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                      {brief.lead_practice_id ? (practiceMap[brief.lead_practice_id] ?? '—') : '—'}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span
