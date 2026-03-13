@@ -93,6 +93,7 @@ export default function ClientKBPage() {
   const base = `/api/kb/clients/${clientId}`
 
   const [clientName, setClientName] = useState<string | null>(null)
+  const [clientIndustry, setClientIndustry] = useState<string | null>(null)
 
   // Sources state
   const [sources, setSources] = useState<Source[]>([])
@@ -127,24 +128,23 @@ export default function ClientKBPage() {
   useEffect(() => {
     if (!clientId) return
 
-    const loadClientName = async () => {
+    const loadClientInfo = async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('name')
+        .select('name, industry')
         .eq('id', clientId)
         .maybeSingle()
 
       if (error) {
-        console.error('Failed to load client name:', error.message)
+        console.error('Failed to load client info:', error.message)
         return
       }
 
-      const name = data?.name ?? null
-
-      setClientName(name)
+      setClientName(data?.name ?? null)
+      setClientIndustry(data?.industry ?? null)
     }
 
-    void loadClientName()
+    void loadClientInfo()
   }, [clientId])
 
   // Poll for digest status while any source is pending/processing
@@ -468,9 +468,7 @@ export default function ClientKBPage() {
   // Check if the last message is from the assistant (and not streaming) to show deep-dive button
   const lastMessage = activeConv?.messages[activeConv.messages.length - 1]
   const showDeepDive =
-    lastMessage?.role === 'assistant' &&
-    lastMessage.id !== 'streaming' &&
-    !sending
+    lastMessage?.role === 'assistant' && lastMessage.id !== 'streaming' && !sending
 
   return (
     <Layout>
@@ -488,7 +486,9 @@ export default function ClientKBPage() {
               <div className="w-px h-6 bg-gray-300"></div>
               <div>
                 <h2 className="font-bold text-xl">{clientName}</h2>
-                <p className="text-sm text-gray-600">TODO: Automotive Industry</p>
+                <p className="text-sm text-gray-600">
+                  {clientIndustry ? clientIndustry : 'Unspecified industry'}
+                </p>
               </div>
             </div>
           </div>
@@ -551,7 +551,8 @@ export default function ClientKBPage() {
                   >
                     {/* Digest status indicator */}
                     <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                      {(source.digest_status === 'pending' || source.digest_status === 'processing') && (
+                      {(source.digest_status === 'pending' ||
+                        source.digest_status === 'processing') && (
                         <Loader2 className="w-3 h-3 text-yellow-500 animate-spin" />
                       )}
                       {source.digest_status === 'ready' && (
@@ -567,7 +568,9 @@ export default function ClientKBPage() {
                       <button
                         className="p-1 hover:bg-yellow-50 rounded"
                         onClick={() => handleRetryDigest(source.id)}
-                        title={source.digest_status === 'pending' ? 'Generate digest' : 'Retry digest'}
+                        title={
+                          source.digest_status === 'pending' ? 'Generate digest' : 'Retry digest'
+                        }
                       >
                         <RefreshCw className="w-3 h-3 text-yellow-600" />
                       </button>
