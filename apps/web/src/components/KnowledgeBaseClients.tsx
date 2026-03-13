@@ -1,4 +1,4 @@
-import { FileText, FolderOpen, Plus, Search } from 'lucide-react'
+import { Calendar, FileText, FolderOpen, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import AddClientModal from './AddClientModal'
 
@@ -116,6 +116,11 @@ export function KnowledgeBaseClients({
                     {client.source_count}
                   </span>
                 </div>
+              </div>
+              <hr className="my-4 border-gray-200" />
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <span className="text-sm">Updated 5 days ago</span>
               </div>
             </div>
           ))}
