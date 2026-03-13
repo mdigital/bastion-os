@@ -36,7 +36,13 @@ type Props = {
   onBriefSelect?: (briefId: string) => void
 }
 
-export default function BriefsListingPage({ briefs, practices, onNewBrief, onRefresh, onBriefSelect }: Props) {
+export default function BriefsListingPage({
+  briefs,
+  practices,
+  onNewBrief,
+  onRefresh,
+  onBriefSelect,
+}: Props) {
   const [search, setSearch] = useState('')
   const [clientFilter, setClientFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -115,59 +121,76 @@ export default function BriefsListingPage({ briefs, practices, onNewBrief, onRef
       </div>
 
       {/* Search & Filters */}
-      <div className="flex flex-wrap items-center gap-4 mb-6">
-        <div className="relative flex-1 min-w-[280px]">
+      <div className="mb-6">
+        <div className="relative w-full mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             placeholder="Search briefs by client name or job..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
             className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
           />
         </div>
-
-        <select
-          value={clientFilter}
-          onChange={(e) => { setClientFilter(e.target.value); setPage(1) }}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white"
-        >
-          <option value="">All Clients</option>
-          {clientNames.map((n) => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white"
-        >
-          <option value="">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="finalized">Finalized</option>
-        </select>
-
-        <select
-          value={departmentFilter}
-          onChange={(e) => { setDepartmentFilter(e.target.value); setPage(1) }}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white"
-        >
-          <option value="">All Departments</option>
-          {practices.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => { setShowArchived(e.target.checked); setPage(1) }}
-            className="rounded border-gray-300"
-          />
-          Show archived
-        </label>
+        <div className="flex flex-wrap gap-4 items-center">
+          <select
+            value={clientFilter}
+            onChange={(e) => {
+              setClientFilter(e.target.value)
+              setPage(1)
+            }}
+            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg"
+          >
+            <option value="">All Clients</option>
+            {clientNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value)
+              setPage(1)
+            }}
+            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg"
+          >
+            <option value="">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="finalized">Finalized</option>
+          </select>
+          <select
+            value={departmentFilter}
+            onChange={(e) => {
+              setDepartmentFilter(e.target.value)
+              setPage(1)
+            }}
+            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg"
+          >
+            <option value="">All Departments</option>
+            {practices.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            Show archived
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => {
+                setShowArchived(e.target.checked)
+                setPage(1)
+              }}
+              className="rounded border-gray-300"
+            />
+          </label>
+        </div>
       </div>
 
       {/* Table */}
@@ -188,14 +211,24 @@ export default function BriefsListingPage({ briefs, practices, onNewBrief, onRef
             </thead>
             <tbody>
               {paged.map((brief) => (
-                <tr key={brief.id} onClick={() => onBriefSelect?.(brief.id)} className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
+                <tr
+                  key={brief.id}
+                  onClick={() => onBriefSelect?.(brief.id)}
+                  className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
                   <td className="px-6 py-4 font-medium">{brief.clients?.name ?? '—'}</td>
-                  <td className="px-6 py-4 max-w-[300px] truncate">{brief.job_to_be_done ?? '—'}</td>
+                  <td className="px-6 py-4 max-w-[300px] truncate">
+                    {brief.job_to_be_done ?? '—'}
+                  </td>
                   <td className="px-6 py-4">{formatCurrency(brief.budget)}</td>
                   <td className="px-6 py-4">{formatDate(brief.due_date)}</td>
-                  <td className="px-6 py-4">{brief.lead_practice_id ? (practiceMap[brief.lead_practice_id] ?? '—') : '—'}</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium capitalize ${STATUS_BADGE[brief.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {brief.lead_practice_id ? (practiceMap[brief.lead_practice_id] ?? '—') : '—'}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium capitalize ${STATUS_BADGE[brief.status] ?? 'bg-gray-100 text-gray-600'}`}
+                    >
                       {brief.status}
                     </span>
                   </td>
@@ -203,7 +236,10 @@ export default function BriefsListingPage({ briefs, practices, onNewBrief, onRef
                   <td className="px-6 py-4">
                     {!brief.archived && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleArchive(brief.id) }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleArchive(brief.id)
+                        }}
                         className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded"
                         title="Archive brief"
                       >
@@ -244,9 +280,7 @@ export default function BriefsListingPage({ briefs, practices, onNewBrief, onRef
                 key={n}
                 onClick={() => setPage(n)}
                 className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                  n === safePage
-                    ? 'bg-black text-white'
-                    : 'border border-gray-300 hover:bg-gray-50'
+                  n === safePage ? 'bg-black text-white' : 'border border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 {n}
