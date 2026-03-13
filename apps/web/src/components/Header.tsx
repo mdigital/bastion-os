@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import Hamburger from '../components/Hamburger'
 import { useNavigate } from 'react-router-dom'
+import { useAppState } from '../contexts/useAppState'
 
 function getInitials(name: string | null, email: string | null): string {
   if (name) {
@@ -21,6 +22,7 @@ export default function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const { user, fullName, signOut } = useAuth()
   const navigate = useNavigate()
+  const { setCurrentView } = useAppState()
 
   const userEmail = user?.email ?? ''
   const userName = fullName || userEmail
@@ -38,6 +40,7 @@ export default function Header() {
           type="button"
           onClick={() => {
             navigate('/')
+            setCurrentView('home')
           }}
         >
           Bastion OS
