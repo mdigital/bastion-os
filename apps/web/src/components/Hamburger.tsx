@@ -1,6 +1,7 @@
 import { X, Menu, Home, FileText, BookOpen, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useAppState } from '../contexts/useAppState'
 
 interface HamburgerProps {
@@ -9,8 +10,10 @@ interface HamburgerProps {
 }
 
 export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
+  // No route-based Home button logic, revert to previous
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
   const { currentView, setCurrentView } = useAppState()
 
   const situationItems = [
@@ -53,7 +56,7 @@ export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
             <div className="flex-1 p-6 flex flex-col gap-2">
               <button
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                  currentView === 'home'
+                  location.pathname === '/'
                     ? 'bg-yellow-400 text-black font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
@@ -73,7 +76,14 @@ export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
               </p>
               {situationItems.map((item) => {
                 const Icon = item.icon
-                const isActive = currentView === item.view
+                let isActive
+                if (item.id === 'knowledge') {
+                  isActive = location.pathname === '/clients'
+                } else if (item.id === 'briefs') {
+                  isActive = location.pathname === '/'
+                } else {
+                  isActive = currentView === item.view
+                }
 
                 return (
                   <button
