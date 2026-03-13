@@ -80,7 +80,11 @@ export default function Hamburger({ userEmail, handleLogout }: HamburgerProps) {
                     key={item.id}
                     onClick={() => {
                       setIsOpen(false)
-                      navigate('/')
+                      if (item.id === 'knowledge') {
+                        navigate('/clients')
+                      } else {
+                        navigate('/')
+                      }
                       setCurrentView(item.view)
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
