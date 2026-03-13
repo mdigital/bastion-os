@@ -1,4 +1,4 @@
-import { Search, Plus, FolderOpen } from 'lucide-react'
+import { FileText, FolderOpen, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import AddClientModal from './AddClientModal'
 
@@ -106,9 +106,17 @@ export function KnowledgeBaseClients({
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-gray-500">
-                {client.source_count} {client.source_count === 1 ? 'source' : 'sources'}
-              </p>
+              <div className="bg-gray-100 rounded-lg p-3 mt-2 flex items-center gap-3">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm  text-gray-600">Sources</span>
+                  </div>
+                  <span className="text-lg font-bold text-gray-700 mt-1">
+                    {client.source_count}
+                  </span>
+                </div>
+              </div>
             </div>
           ))}
         </div>
