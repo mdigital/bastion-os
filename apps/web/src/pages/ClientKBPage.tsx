@@ -477,7 +477,7 @@ export default function ClientKBPage() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/clients')}
                 className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
