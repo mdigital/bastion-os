@@ -135,7 +135,7 @@ export default function BriefsListingPage({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search briefs by client name or job..."
+            placeholder="Search briefs by client name, department or job..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value)
