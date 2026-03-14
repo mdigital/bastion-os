@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 2
 
 const STATUS_BADGE: Record<string, string> = {
   draft: 'bg-yellow-100 text-yellow-800',
@@ -303,16 +303,19 @@ export default function BriefsListingPage({
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={safePage <= 1}
-              className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1 p-2 rounded-lg border border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
+              <span>Previous</span>
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
               <button
                 key={n}
                 onClick={() => setPage(n)}
                 className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                  n === safePage ? 'bg-black text-white' : 'border border-gray-300 hover:bg-gray-50'
+                  n === safePage
+                    ? 'bg-yellow-400 text-black'
+                    : 'border border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 {n}
@@ -321,8 +324,9 @@ export default function BriefsListingPage({
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={safePage >= totalPages}
-              className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1 p-2 rounded-lg border border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
             >
+              <span>Next</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
