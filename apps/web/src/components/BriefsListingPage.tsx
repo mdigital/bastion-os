@@ -10,6 +10,8 @@ import {
   User,
   DollarSign,
   Calendar,
+  X,
+  HelpCircle,
 } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
@@ -58,6 +60,7 @@ export default function BriefsListingPage({
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [page, setPage] = useState(1)
+  const [showHelpModal, setShowHelpModal] = useState(false)
 
   const clientNames = useMemo(() => {
     const names = new Set(briefs.map((b) => b.clients?.name).filter(Boolean) as string[])
@@ -117,7 +120,16 @@ export default function BriefsListingPage({
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Client briefs</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold">Client briefs</h1>
+            <button
+              onClick={() => setShowHelpModal(true)}
+              className="text-yellow-600 hover:text-yellow-700 transition-colors flex items-center gap-1 text-sm"
+            >
+              <HelpCircle className="w-5 h-5" />
+              <span>How this tool works</span>
+            </button>
+          </div>
           <p className="text-gray-600">View and manage all your client briefs</p>
         </div>
         <button
@@ -313,6 +325,123 @@ export default function BriefsListingPage({
             >
               <ChevronRight className="w-4 h-4" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <h3>How This Tool Works</h3>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="bg-linear-to-r from-yellow-50 to-bone border-l-4 border-yellow-400 p-6 rounded-lg">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shrink-0">
+                    <svg
+                      className="w-5 h-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-gray-700 mb-6">
+                      The Client Brief Clarifier and Enhancer validates that you have all the
+                      information needed to make sound strategic decisions. This tool does{' '}
+                      <strong>not</strong> suggest what strategy should be used—it ensures clarity
+                      before strategic work begins.
+                    </p>
+
+                    {/* Timeline Steps */}
+                    <div className="space-y-4">
+                      {/* Step 1 */}
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shrink-0 mt-1">
+                          <span className="text-sm font-bold">1</span>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold mb-1">Receive Client Brief</h4>
+                          <p className="text-sm text-gray-700">
+                            Upload the initial brief received from your client to begin the
+                            clarification process.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shrink-0 mt-1">
+                          <span className="text-sm font-bold">2</span>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold mb-1">Clarify and Enhance</h4>
+                          <p className="text-sm text-gray-700">
+                            The AI analyses the brief and highlights any missing information or
+                            areas that need clarification to ensure you have everything needed for
+                            strategic planning.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 3 */}
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center shrink-0 mt-1">
+                          <span className="text-sm font-bold text-gray-600">3</span>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold mb-1">
+                            Strategic Response{' '}
+                            <span className="text-xs text-gray-500 font-normal">(optional)</span>
+                          </h4>
+                          <p className="text-sm text-gray-700">
+                            Once the brief is clarified, your team can develop the strategic
+                            response using the enhanced brief as a foundation.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 4 */}
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shrink-0 mt-1">
+                          <span className="text-sm font-bold">4</span>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold mb-1">Create Practice Brief</h4>
+                          <p className="text-sm text-gray-700">
+                            Finalise the enhanced brief ready to share with your team and begin
+                            execution.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 flex justify-end border-t border-gray-200 rounded-b-2xl">
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-colors"
+              >
+                Got it
+              </button>
+            </div>
           </div>
         </div>
       )}
