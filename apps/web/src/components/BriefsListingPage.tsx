@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
-const PAGE_SIZE = 2
+const PAGE_SIZE = 20
 
 const STATUS_BADGE: Record<string, string> = {
   draft: 'bg-yellow-100 text-yellow-800',
